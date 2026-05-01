@@ -1,20 +1,31 @@
-# This file is responsible for loading environment variables
+"""
+Application Configuration
+
+Central place for loading and exposing environment variables used
+throughout the application. Reads from a `.env` file (via python-dotenv)
+and falls back to the system environment. All configuration values are
+exported as module-level constants so they can be imported directly
+wherever needed.
+"""
 
 import os
 from dotenv import load_dotenv
 
-# Load variables from .env file into system environment
+# Load key-value pairs from the `.env` file (if present) into os.environ
 load_dotenv()
 
-# Read values using os.getenv()
+# Database connection string (e.g. postgresql://user:pass@host:5432/db)
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Secret key used for signing session cookies, JWTs, or other cryptographic operations
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-# Parse comma-separated origins string into a list (e.g. "http://localhost:3000,https://example.com")
+# Parse the comma-separated ALLOWED_ORIGINS string into a Python list.
+# Example: "http://localhost:3000,https://example.com" → ["http://localhost:3000", "https://example.com"]
 _origins_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [origin.strip() for origin in _origins_env.split(",") if origin.strip()]
 
-# Xero API credentials
+# Xero OAuth2 application credentials — registered at https://developer.xero.com
 XERO_CLIENT_ID = os.getenv("XERO_CLIENT_ID")
 XERO_CLIENT_SECRET = os.getenv("XERO_CLIENT_SECRET")
 XERO_REDIRECT_URI = os.getenv("XERO_REDIRECT_URI")
