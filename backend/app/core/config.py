@@ -25,6 +25,9 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 _origins_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [origin.strip() for origin in _origins_env.split(",") if origin.strip()]
 
+# Frontend base URL — used to redirect users back after OAuth completes
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 # Xero OAuth2 application credentials — registered at https://developer.xero.com
 XERO_CLIENT_ID = os.getenv("XERO_CLIENT_ID")
 XERO_CLIENT_SECRET = os.getenv("XERO_CLIENT_SECRET")

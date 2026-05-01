@@ -15,7 +15,8 @@ from urllib.parse import urlencode
 from app.core.config import (
     XERO_CLIENT_ID,
     XERO_CLIENT_SECRET,
-    XERO_REDIRECT_URI
+    XERO_REDIRECT_URI,
+    FRONTEND_URL
 )
 from app.services.token_store import store_tokens
 
@@ -116,13 +117,9 @@ def callback(
             max_age=token_data.get("expires_in", 1800),  # Cookie expires with the token
         )
 
-        return {
-            "message": "Successfully connected to Xero",
-            "session_id": session_id,
-            "token_type": token_data.get("token_type"),
-            "expires_in": token_data.get("expires_in"),
-            "scope": token_data.get("scope"),
-        }
+        # After storing tokens and setting the session cookie,
+        # redirect the user back to the frontend dashboard
+        return RedirectResponse(url=FRONTEND_URL)
 
     except HTTPException:
         raise
