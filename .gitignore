@@ -1,0 +1,24 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Frontend deps/build output
+**/node_modules/
+**/dist/
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store
+
+# OpenMemory - IDE/Assistant specific rules
+.cursor/rules/openmemory.mdc

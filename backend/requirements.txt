@@ -1,0 +1,4 @@
+fastapi
+mangum
+python-dotenv
+uvicorn
