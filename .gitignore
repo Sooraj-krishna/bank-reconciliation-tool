@@ -4,3 +4,6 @@
 venv/
 # Python cache 
 __pycache__/
+
+# OpenMemory - IDE/Assistant specific rules
+.cursor/rules/openmemory.mdc
