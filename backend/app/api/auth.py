@@ -43,7 +43,7 @@ def login(request: Request):
         "response_type": "code",           # Request an authorization code
         "client_id": XERO_CLIENT_ID,       # Application identifier registered in Xero
         "redirect_uri": XERO_REDIRECT_URI, # Where Xero sends the user after consent
-        "scope": "openid profile email accounting.transactions.read offline_access",
+        "scope": "openid profile email accounting.invoices accounting.payments accounting.banktransactions accounting.settings offline_access",
     }
 
     # Construct the full Xero authorization URL
