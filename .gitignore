@@ -27,3 +27,6 @@ data/
 .cursor/rules/openmemory.mdc
 
 .openmemory.md
+
+.memory_cache/
+

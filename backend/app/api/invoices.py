@@ -31,10 +31,13 @@ def get_invoices(
         HTTPException 401 if not connected to Xero
         HTTPException 500 if fetch fails
     """
+    # Production Trace: Log headers to diagnose cookie issues
+    print(f"TRACE: xero_session_id present: {bool(xero_session_id)}")
+    
     if not xero_session_id:
         raise HTTPException(
             status_code=401,
-            detail="Not connected to Xero. Please connect first."
+            detail="No session cookie found. If you are in production, ensure CORS allow_credentials is True and SameSite is None."
         )
 
     # Fetch invoices (this service handles auto-refresh internally)
