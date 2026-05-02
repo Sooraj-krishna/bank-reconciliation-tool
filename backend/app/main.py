@@ -33,7 +33,7 @@ app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 # origin/port) can make cross-origin requests to this API.
 # allow_origin_regex allows all vercel.app preview deployments dynamically.
 app.add_middleware(
-    CORSmiddleware,
+    CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,           # Explicit list of allowed frontend origins; an empty list blocks all CORS requests
     allow_origin_regex=r"https://.*\.vercel\.app$" if os.getenv("ALLOW_VERCEL_PREVIEWS") else None,
     allow_credentials=True,                   # Allow cookies to be sent cross-origin
