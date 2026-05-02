@@ -113,14 +113,15 @@ def callback(
         redir = RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
         
         # Set an httponly, secure cookie so the session ID travels on every subsequent request
-        # and cannot be accessed by client-side JavaScript (mitigates XSS token theft)
+        # In production (HTTPS), we use samesite="none" to allow cross-site cookies between Vercel and Render.
+        is_prod = FRONTEND_URL.startswith("https")
         redir.set_cookie(
             key="xero_session_id",
             value=session_id,
-            httponly=True,     # Prevent JavaScript access
-            secure=FRONTEND_URL.startswith("https"),  # Only secure in production (HTTPS)
-            samesite="lax",    # Protects against CSRF while allowing top-level GET navigation
-            max_age=token_data.get("expires_in", 1800),  # Cookie expires with the token
+            httponly=True,
+            secure=is_prod,
+            samesite="none" if is_prod else "lax",
+            max_age=token_data.get("expires_in", 1800),
         )
 
         return redir
@@ -158,9 +159,11 @@ def logout(response: Response, xero_session_id: str = Cookie(None)):
         from app.services.token_store import delete_session
         delete_session(xero_session_id)
         
+    is_prod = FRONTEND_URL.startswith("https")
     response.delete_cookie(
         key="xero_session_id",
         httponly=True,
-        samesite="lax",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
     )
     return {"message": "Logged out successfully"}
