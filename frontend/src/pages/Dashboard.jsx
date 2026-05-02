@@ -2,24 +2,16 @@
  * @file Dashboard.jsx
  * @description Dashboard page displayed after successful Xero connection.
  *   Fetches and displays invoices from Xero in a table.
- *   Shows loading state and error handling.
  */
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import ErrorAlert from "../components/ErrorAlert";
-import { useAppContext } from "../contexts/AppContext";
+import { useAppContext } from "../hooks/useAppContext";
 
 /**
  * Dashboard - Displays Xero invoices after successful connection.
- *
- * Responsibilities:
- *   1. Check if user has a valid Xero session
- *   2. Fetch invoices from backend API
- *   3. Display invoices in a table
- *   4. Handle loading and error states
- *
  * @returns {JSX.Element} The dashboard UI.
  */
 export default function Dashboard() {
@@ -29,35 +21,41 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to home if not connected
     if (!isConnected) {
       navigate("/");
       return;
     }
 
-    fetchInvoices();
-  }, [isConnected, navigate]);
+    let cancelled = false;
 
-  const fetchInvoices = async () => {
-    try {
-      const response = await api.get("/api/invoices");
-      setInvoices(response.data.invoices || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching invoices:", err);
-      if (err.response?.status === 401) {
-        showError("Xero session expired. Please reconnect.");
-        setIsConnected(false);
-        navigate("/");
-      } else {
-        showError("Failed to fetch invoices from Xero. Please try again.");
+    const fetchData = async () => {
+      try {
+        const response = await api.get("/api/invoices");
+        if (!cancelled) {
+          setInvoices(response.data.invoices || []);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching invoices:", err);
+        if (!cancelled) {
+          if (err.response?.status === 401) {
+            showError("Xero session expired. Please reconnect.");
+            setIsConnected(false);
+            navigate("/");
+          } else {
+            showError("Failed to fetch invoices from Xero. Please try again.");
+          }
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchData();
+
+    return () => { cancelled = true; };
+  }, [isConnected, navigate, showError, setIsConnected]);
 
   const handleDisconnect = () => {
-    // Clear session and redirect to home
     setIsConnected(false);
     navigate("/");
   };
@@ -72,7 +70,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      {/* Header */}
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -84,11 +81,8 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {error && (
-          <ErrorAlert message={error} onClose={clearError} />
-        )}
+        {error && <ErrorAlert message={error} onClose={clearError} />}
 
-        {/* Invoices Table */}
         <div className="bg-white shadow-xl rounded-2xl p-6">
           <h2 className="text-xl font-semibold mb-4">
             Xero Invoices ({invoices.length})

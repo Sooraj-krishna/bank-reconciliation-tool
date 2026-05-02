@@ -1,38 +1,14 @@
 /**
  * @file AppContext.jsx
- * @description Creates a React Context that holds global application state:
- *   error messages, backend connection status, and session ID. Provides
- *   a custom hook (useAppContext) and a provider component (AppProvider)
- *   so any descendant can read and update this shared state.
+ * @description AppProvider component that wraps the app and provides global state.
+ *   The context itself is defined in AppContext.js (separate file for react-refresh).
+ *   The useAppContext hook is in hooks/useAppContext.js
  */
 
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { AppContext } from "./AppContext";
 import api from "../api/client";
 import { getCookie } from "../utils/cookie";
-
-// Create the context object; components will subscribe to this.
-const AppContext = createContext();
-
-/**
- * Custom hook to consume the AppContext.
- * Throws a helpful error if used outside of an AppProvider.
- *
- * @returns {{
- *   error: string|null,
- *   showError: function,
- *   clearError: function,
- *   isConnected: boolean,
- *   setIsConnected: function,
- *   sessionId: string|null,
- *   setSessionId: function,
- *   checkBackendConnection: function
- * }} The full context value.
- */
-export function useAppContext() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useAppContext must be used within AppProvider");
-  return ctx;
-}
 
 /**
  * AppProvider - Wraps the app and provides global state via AppContext.
@@ -48,7 +24,10 @@ export function AppProvider({ children }) {
   // Whether the frontend has successfully pinged the backend
   const [isConnected, setIsConnected] = useState(false);
   // The current Xero session ID returned after OAuth login
-  const [sessionId, setSessionId] = useState(null);
+  const [sessionId, setSessionId] = useState(() => {
+    // Initialize from cookie on first render (lazy initialization)
+    return getCookie("xero_session_id") || null;
+  });
 
   /**
    * showError - Sets a global error message that triggers the ErrorAlert modal.
@@ -82,14 +61,6 @@ export function AppProvider({ children }) {
         console.error("Backend connection error:", err);
         setIsConnected(false);
       });
-  }, []);
-
-  // Check for existing session on mount
-  useEffect(() => {
-    const existingSessionId = getCookie("xero_session_id");
-    if (existingSessionId) {
-      setSessionId(existingSessionId);
-    }
   }, []);
 
   // Check backend connection on mount
