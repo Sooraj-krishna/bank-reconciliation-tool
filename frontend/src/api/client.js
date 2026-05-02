@@ -15,11 +15,14 @@ import axios from "axios";
  *   1. VITE_API_BASE_URL env var (explicit override)
  *   2. In production → "/api" (relative path, assumes reverse proxy)
  *   3. In development → "http://127.0.0.1:8000" (local FastAPI server)
+ *
+ * withCredentials: true → sends cookies (for session auth)
  */
 const api = axios.create({
   baseURL:
     import.meta.env.VITE_API_BASE_URL ??
     (import.meta.env.PROD ? "/api" : "http://127.0.0.1:8000"),
+  withCredentials: true,
 });
 
 export default api;
