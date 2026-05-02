@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { AppContext } from "./AppContext";
+import { AppContext } from "./AppContext.js";
 import api from "../api/client";
 import { getCookie } from "../utils/cookie";
 

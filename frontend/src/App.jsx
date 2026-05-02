@@ -7,7 +7,7 @@
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AppProvider } from "./contexts/AppContext";
+import { AppProvider } from "./contexts/AppContext.jsx";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 
