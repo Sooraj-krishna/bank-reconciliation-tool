@@ -8,6 +8,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import api from "../api/client";
+import { getCookie } from "../utils/cookie";
 
 // Create the context object; components will subscribe to this.
 const AppContext = createContext();
@@ -31,16 +32,6 @@ export function useAppContext() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useAppContext must be used within AppProvider");
   return ctx;
-}
-
-/**
- * Get cookie value by name
- */
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
 }
 
 /**
@@ -93,12 +84,16 @@ export function AppProvider({ children }) {
       });
   }, []);
 
-  // Check for existing session and backend connection on mount
+  // Check for existing session on mount
   useEffect(() => {
     const existingSessionId = getCookie("xero_session_id");
     if (existingSessionId) {
       setSessionId(existingSessionId);
     }
+  }, []);
+
+  // Check backend connection on mount
+  useEffect(() => {
     checkBackendConnection();
   }, [checkBackendConnection]);
 
