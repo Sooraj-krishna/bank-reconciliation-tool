@@ -28,7 +28,6 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 # Mount the invoices router under /api prefix
 app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 
-
 # Attach CORS middleware so the React frontend (running on a different
 # origin/port) can make cross-origin requests to this API.
 # allow_origin_regex allows all vercel.app preview deployments dynamically.
@@ -41,12 +40,10 @@ app.add_middleware(
     allow_headers=["*"],                     # Accept any custom headers the client may send
 )
 
-
 @app.get("/")
 def root():
     """Root endpoint — confirms the backend server is reachable."""
     return {"message": "Backend is running 🚀"}
-
 
 @app.get("/health")
 def health():

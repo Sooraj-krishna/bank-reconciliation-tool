@@ -16,26 +16,26 @@ import { useAppContext } from "../hooks/useAppContext";
  * @returns {JSX.Element} The home page UI.
  */
 export default function Home() {
-  const { error, clearError, isConnected, sessionId, checkBackendConnection } = useAppContext();
+  const { error, clearError, isConnected, checkXeroSession } = useAppContext();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check backend connection
-    checkBackendConnection();
-    
+    // Check Xero session on mount
+    checkXeroSession();
+
     // Redirect to dashboard if already connected
-    if (sessionId) {
+    if (isConnected) {
       navigate("/dashboard");
     }
-    
+
     // Set loading to false after a short delay for UX
     const timer = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(timer);
-  }, [checkBackendConnection, sessionId, navigate]);
+  }, [checkXeroSession, isConnected, navigate]);
 
   const handleConnect = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://127.0.0.1:8000')}/auth/login`;
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8000')}/auth/login`;
   };
 
   return (
@@ -47,11 +47,11 @@ export default function Home() {
         <p className="text-gray-500 mb-6">Connect your data and reconcile transactions efficiently</p>
 
         {loading ? (
-          <p className="text-gray-400 animate-pulse">Checking backend...</p>
+          <p className="text-gray-400 animate-pulse">Checking connection...</p>
         ) : isConnected ? (
-          <p className="text-green-500 font-medium mb-4">Backend Connected</p>
+          <p className="text-green-500 font-medium mb-4">Connected to Xero</p>
         ) : (
-          <p className="text-red-500 font-medium mb-4">Backend Disconnected</p>
+          <p className="text-gray-500 font-medium mb-4">Not connected to Xero</p>
         )}
 
         <button

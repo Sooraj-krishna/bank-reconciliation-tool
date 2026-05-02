@@ -21,11 +21,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isConnected) {
-      navigate("/");
-      return;
-    }
-
     let cancelled = false;
 
     const fetchData = async () => {
@@ -44,8 +39,8 @@ export default function Dashboard() {
             navigate("/");
           } else {
             showError("Failed to fetch invoices from Xero. Please try again.");
+            setLoading(false);
           }
-          setLoading(false);
         }
       }
     };
@@ -53,11 +48,19 @@ export default function Dashboard() {
     fetchData();
 
     return () => { cancelled = true; };
-  }, [isConnected, navigate, showError, setIsConnected]);
+  }, [navigate, showError, setIsConnected]);
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    navigate("/");
+  const handleDisconnect = async () => {
+    try {
+      await api.get("/auth/logout");
+      setIsConnected(false);
+      navigate("/");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      // Even if the backend call fails, we should clear local state and redirect
+      setIsConnected(false);
+      navigate("/");
+    }
   };
 
   if (loading) {
@@ -121,8 +124,8 @@ export default function Dashboard() {
                       </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          invoice.Status === "AUTHORISED" 
-                            ? "bg-green-100 text-green-800" 
+                          invoice.Status === "AUTHORISED"
+                            ? "bg-green-100 text-green-800"
                             : invoice.Status === "PAID"
                             ? "bg-blue-100 text-blue-800"
                             : "bg-gray-100 text-gray-800"

@@ -8,8 +8,8 @@ Handles the two-step OAuth2 authorization code flow with Xero:
    httponly session cookie so subsequent API calls can be authenticated.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, HTTPException, Request, Response, Cookie
+from fastapi.responses import RedirectResponse, JSONResponse
 import requests
 from urllib.parse import urlencode
 from app.core.config import (
@@ -18,7 +18,8 @@ from app.core.config import (
     XERO_REDIRECT_URI,
     FRONTEND_URL
 )
-from app.services.token_store import store_tokens, get_tokens, is_token_expired
+from app.services.token_store import store_tokens, get_tokens
+from app.services.xero_service import get_valid_tokens
 
 router = APIRouter()
 
@@ -108,9 +109,12 @@ def callback(
         session_id = str(uuid.uuid4())
         store_tokens(session_id, token_data)
 
+        # Redirect to the frontend after successful authentication
+        redir = RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
+        
         # Set an httponly, secure cookie so the session ID travels on every subsequent request
         # and cannot be accessed by client-side JavaScript (mitigates XSS token theft)
-        response.set_cookie(
+        redir.set_cookie(
             key="xero_session_id",
             value=session_id,
             httponly=True,     # Prevent JavaScript access
@@ -119,10 +123,44 @@ def callback(
             max_age=token_data.get("expires_in", 1800),  # Cookie expires with the token
         )
 
-        # Redirect to the frontend after successful authentication
-        return RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
+        return redir
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/session")
+def check_session(xero_session_id: str = Cookie(None)):
+    """
+    Check if the current session is valid and not expired.
+    Returns session status without exposing token details.
+    """
+    if not xero_session_id:
+        return {"connected": False}
+
+    # Retrieve tokens and automatically refresh if expired
+    tokens = get_valid_tokens(xero_session_id)
+    if not tokens:
+        return {"connected": False}
+
+    return {"connected": True}
+
+
+@router.get("/logout")
+def logout(response: Response, xero_session_id: str = Cookie(None)):
+    """
+    Clear the Xero session.
+    Deletes the session from the database and removes the session cookie.
+    """
+    if xero_session_id:
+        from app.services.token_store import delete_session
+        delete_session(xero_session_id)
+        
+    response.delete_cookie(
+        key="xero_session_id",
+        httponly=True,
+        samesite="lax",
+    )
+    return {"message": "Logged out successfully"}

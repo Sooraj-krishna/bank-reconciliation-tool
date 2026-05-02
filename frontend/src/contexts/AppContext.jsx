@@ -21,7 +21,7 @@ import { getCookie } from "../utils/cookie";
 export function AppProvider({ children }) {
   // Current active error message (null = no error)
   const [error, setError] = useState(null);
-  // Whether the frontend has successfully pinged the backend
+  // Whether the user has a valid Xero session
   const [isConnected, setIsConnected] = useState(false);
   // The current Xero session ID returned after OAuth login
   const [sessionId, setSessionId] = useState(() => {
@@ -48,25 +48,24 @@ export function AppProvider({ children }) {
   }, []);
 
   /**
-   * checkBackendConnection - Pings the backend /health endpoint
-   * and updates isConnected state.
+   * checkXeroSession - Checks if the current Xero session is valid.
+   * Uses the backend /auth/session endpoint to validate the session cookie.
    */
-  const checkBackendConnection = useCallback(() => {
-    api.get("/health")
+  const checkXeroSession = useCallback(() => {
+    api.get("/auth/session")
       .then((res) => {
-        console.log("Backend response:", res.data);
-        setIsConnected(true);
+        setIsConnected(res.data.connected);
       })
       .catch((err) => {
-        console.error("Backend connection error:", err);
+        console.error("Session check error:", err);
         setIsConnected(false);
       });
   }, []);
 
-  // Check backend connection on mount
+  // Check Xero session on mount (validates cookie with backend)
   useEffect(() => {
-    checkBackendConnection();
-  }, [checkBackendConnection]);
+    checkXeroSession();
+  }, [checkXeroSession]);
 
   // Provide state and setters/mutators to all descendant components
   return (
@@ -79,7 +78,7 @@ export function AppProvider({ children }) {
         setIsConnected,
         sessionId,
         setSessionId,
-        checkBackendConnection,
+        checkXeroSession,
       }}
     >
       {children}

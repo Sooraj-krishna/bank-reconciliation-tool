@@ -145,5 +145,13 @@ def is_token_expired(token_entry: dict) -> bool:
     if not expires_at_str:
         return True
     
-    expires_at = datetime.fromisoformat(expires_at_str)
-    return datetime.utcnow() >= expires_at
+    # Handle both "T" and space separators in timestamps
+    if " " in expires_at_str and "T" not in expires_at_str:
+        expires_at_str = expires_at_str.replace(" ", "T")
+        
+    try:
+        expires_at = datetime.fromisoformat(expires_at_str)
+        # Add a 60-second buffer to handle clock skew/network latency
+        return datetime.utcnow() + timedelta(seconds=60) >= expires_at
+    except Exception:
+        return True

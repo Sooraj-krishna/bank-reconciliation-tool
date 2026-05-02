@@ -55,9 +55,11 @@ def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
         )
         
         if resp.status_code != 200:
+            print(f"DEBUG: Token refresh failed for session {session_id}. Status: {resp.status_code}, Body: {resp.text}")
             # Refresh failed - token might be revoked
             return None
         
+        print(f"DEBUG: Token refresh successful for session {session_id}")
         new_token_data = resp.json()
         
         # Preserve old refresh_token if new one not provided
