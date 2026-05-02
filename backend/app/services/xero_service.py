@@ -12,22 +12,29 @@ from app.core.config import XERO_CLIENT_ID, XERO_CLIENT_SECRET
 from app.services.token_store import get_tokens, store_tokens, is_token_expired
 
 
+import threading
+
+# Global lock to prevent parallel token refreshes for the same session
+_refresh_lock = threading.Lock()
+
 def get_valid_tokens(session_id: str) -> dict | None:
     """
     Retrieve tokens and automatically refresh if expired.
     
     Returns token dict with valid access_token, or None if refresh fails.
     """
-    token_entry = get_tokens(session_id)
-    
-    if not token_entry:
-        return None
-    
-    # Check if token is expired (with 5-minute buffer)
-    if is_token_expired(token_entry):
-        return refresh_access_token(session_id, token_entry)
-    
-    return token_entry
+    with _refresh_lock:
+        token_entry = get_tokens(session_id)
+        
+        if not token_entry:
+            return None
+        
+        # Check if token is expired (with 1-minute buffer added in token_store)
+        if is_token_expired(token_entry):
+            print(f"TRACE: Token expired for session {session_id}, attempting refresh...", flush=True)
+            return refresh_access_token(session_id, token_entry)
+        
+        return token_entry
 
 
 def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
@@ -55,11 +62,11 @@ def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
         )
         
         if resp.status_code != 200:
-            print(f"DEBUG: Token refresh failed for session {session_id}. Status: {resp.status_code}, Body: {resp.text}")
+            print(f"DEBUG: Token refresh failed for session {session_id}. Status: {resp.status_code}, Body: {resp.text}", flush=True)
             # Refresh failed - token might be revoked
             return None
         
-        print(f"DEBUG: Token refresh successful for session {session_id}")
+        print(f"DEBUG: Token refresh successful for session {session_id}", flush=True)
         new_token_data = resp.json()
         
         # Preserve old refresh_token if new one not provided

@@ -138,7 +138,7 @@ def check_session(xero_session_id: str = Cookie(None)):
     Check if the current session is valid and not expired.
     Returns session status without exposing token details.
     """
-    print(f"TRACE: check_session - xero_session_id present: {bool(xero_session_id)}")
+    print(f"TRACE: check_session - xero_session_id present: {bool(xero_session_id)}", flush=True)
     if not xero_session_id:
         return {"connected": False}
 

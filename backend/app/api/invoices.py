@@ -32,7 +32,7 @@ def get_invoices(
         HTTPException 500 if fetch fails
     """
     # Production Trace: Log headers to diagnose cookie issues
-    print(f"TRACE: xero_session_id present: {bool(xero_session_id)}")
+    print(f"TRACE: get_invoices - xero_session_id present: {bool(xero_session_id)}", flush=True)
     
     if not xero_session_id:
         raise HTTPException(
