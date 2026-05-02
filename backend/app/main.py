@@ -7,6 +7,7 @@ authentication router (Xero OAuth2 flow), and exposes basic health-check
 endpoints.
 """
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import ALLOWED_ORIGINS
@@ -22,9 +23,11 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 # Attach CORS middleware so the React frontend (running on a different
 # origin/port) can make cross-origin requests to this API.
+# allow_origin_regex allows all vercel.app preview deployments dynamically.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,           # Explicit list of allowed frontend origins; an empty list blocks all CORS requests
+    allow_origin_regex=r"https://.*\.vercel\.app$" if os.getenv("ALLOW_VERCEL_PREVIEWS") else None,
     allow_methods=["*"],                     # Permit every HTTP method (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],                     # Accept any custom headers the client may send
 )

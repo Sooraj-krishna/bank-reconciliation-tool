@@ -29,3 +29,6 @@ ALLOWED_ORIGINS = [origin.strip() for origin in _origins_env.split(",") if origi
 XERO_CLIENT_ID = os.getenv("XERO_CLIENT_ID")
 XERO_CLIENT_SECRET = os.getenv("XERO_CLIENT_SECRET")
 XERO_REDIRECT_URI = os.getenv("XERO_REDIRECT_URI")
+
+# Frontend base URL — used for post-OAuth redirect
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
