@@ -3,3 +3,4 @@ mangum
 python-dotenv
 requests
 uvicorn
+sqlalchemy

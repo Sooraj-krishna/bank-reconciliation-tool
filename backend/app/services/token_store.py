@@ -1,115 +1,149 @@
 """
-Token Store Service
+Token Store Service (SQLite-based)
 
-Provides a simple file-based persistence layer for Xero OAuth2 tokens.
-Tokens are stored as JSON in `data/tokens.json`, keyed by a session ID.
-This module handles CRUD operations (store, retrieve, list, delete) and
-token-expiry checking so the rest of the application can work with
-authenticated Xero sessions without managing the raw file I/O.
+Provides persistent storage for Xero OAuth2 tokens using SQLite via SQLAlchemy.
+Handles CRUD operations, token-expiry checking, and automatic token refresh.
 """
 
-import os
-import json
 import uuid
 from datetime import datetime, timedelta
-
-# Resolve the path to the token storage file relative to this module's location.
-# The file lives at <project_root>/data/tokens.json
-TOKEN_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "tokens.json")
-
-# Ensure the `data/` directory exists so that writes do not fail on first run
-os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
+from sqlalchemy.orm import Session
+from app.core.database import SessionLocal
+from app.models.token import Token
 
 
-def _load_tokens():
+def store_tokens(session_id: str, token_data: dict, db: Session = None) -> str:
     """
-    Read the token store from disk and return it as a dictionary.
-
-    Returns an empty dict if the file does not yet exist (first run).
+    Persist a Xero token payload in the database.
+    
+    If session_id is empty or None, generates a new UUID.
+    Enriches token data with server-side timestamps for expiry tracking.
+    
+    Returns the session ID (new or existing).
     """
-    if not os.path.exists(TOKEN_FILE):
-        return {}
-    with open(TOKEN_FILE, "r") as f:
-        return json.load(f)
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
+    expires_at = datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 1800))
+    
+    # Use provided db session or create new one
+    close_db = False
+    if db is None:
+        db = SessionLocal()
+        close_db = True
+    
+    try:
+        # Check if session already exists
+        existing = db.query(Token).filter(Token.session_id == session_id).first()
+        
+        if existing:
+            # Update existing token
+            existing.access_token = token_data.get("access_token")
+            existing.refresh_token = token_data.get("refresh_token")
+            existing.expires_in = token_data.get("expires_in")
+            existing.scope = token_data.get("scope")
+            existing.token_type = token_data.get("token_type")
+            existing.id_token = token_data.get("id_token")
+            existing.expires_at = expires_at
+        else:
+            # Create new token entry
+            new_token = Token(
+                session_id=session_id,
+                access_token=token_data.get("access_token"),
+                refresh_token=token_data.get("refresh_token"),
+                expires_in=token_data.get("expires_in"),
+                scope=token_data.get("scope"),
+                token_type=token_data.get("token_type"),
+                id_token=token_data.get("id_token"),
+                expires_at=expires_at
+            )
+            db.add(new_token)
+        
+        db.commit()
+        return session_id
+    finally:
+        if close_db:
+            db.close()
 
 
-def _save_tokens(store):
-    """
-    Write the given token dictionary to disk as formatted JSON.
-
-    `indent=2` makes the file human-readable for debugging.
-    """
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(store, f, indent=2)
-
-
-def store_tokens(session_id, token_data):
-    """
-    Persist a Xero token payload under the given session ID.
-
-    Enriches the raw token data with server-side timestamps:
-      - `created_at` — when the token was received (ISO 8601)
-      - `expires_at` — calculated from `expires_in`; the point after which
-        the access token is no longer valid and a refresh is required.
-
-    Returns the session ID so the caller can set it as a cookie.
-    """
-    store = _load_tokens()
-    store[session_id] = {
-        "access_token": token_data.get("access_token"),
-        "refresh_token": token_data.get("refresh_token"),
-        "expires_in": token_data.get("expires_in"),
-        "scope": token_data.get("scope"),
-        "token_type": token_data.get("token_type"),
-        "id_token": token_data.get("id_token"),
-        "created_at": datetime.utcnow().isoformat(),
-        "expires_at": (datetime.utcnow() + timedelta(seconds=token_data.get("expires_in", 1800))).isoformat(),
-    }
-    _save_tokens(store)
-    return session_id
-
-
-def get_tokens(session_id):
+def get_tokens(session_id: str) -> dict | None:
     """
     Retrieve the token entry for a specific session ID.
-
     Returns None if the session does not exist.
     """
-    store = _load_tokens()
-    return store.get(session_id)
+    db = SessionLocal()
+    try:
+        token = db.query(Token).filter(Token.session_id == session_id).first()
+        if not token:
+            return None
+        
+        return {
+            "session_id": token.session_id,
+            "access_token": token.access_token,
+            "refresh_token": token.refresh_token,
+            "expires_in": token.expires_in,
+            "scope": token.scope,
+            "token_type": token.token_type,
+            "id_token": token.id_token,
+            "created_at": token.created_at.isoformat() if token.created_at else None,
+            "expires_at": token.expires_at.isoformat() if token.expires_at else None
+        }
+    finally:
+        db.close()
 
 
-def get_all_sessions():
+def get_all_sessions() -> dict:
     """
-    Return the entire token store (all sessions).
-
+    Return all token sessions from the database.
     Useful for admin dashboards or session management endpoints.
     """
-    return _load_tokens()
+    db = SessionLocal()
+    try:
+        tokens = db.query(Token).all()
+        return {t.session_id: {
+            "session_id": t.session_id,
+            "access_token": t.access_token,
+            "refresh_token": t.refresh_token,
+            "expires_in": t.expires_in,
+            "scope": t.scope,
+            "token_type": t.token_type,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "expires_at": t.expires_at.isoformat() if t.expires_at else None
+        } for t in tokens}
+    finally:
+        db.close()
 
 
-def delete_session(session_id):
+def delete_session(session_id: str) -> bool:
     """
-    Remove a session from the token store.
-
+    Remove a session from the database.
     Returns True if the session was found and deleted, False otherwise.
     """
-    store = _load_tokens()
-    if session_id in store:
-        del store[session_id]
-        _save_tokens(store)
-        return True
-    return False
+    db = SessionLocal()
+    try:
+        token = db.query(Token).filter(Token.session_id == session_id).first()
+        if token:
+            db.delete(token)
+            db.commit()
+            return True
+        return False
+    finally:
+        db.close()
 
 
-def is_token_expired(token_entry):
+def is_token_expired(token_entry: dict) -> bool:
     """
     Check whether a token entry has passed its expiration time.
-
+    
     Compares the stored `expires_at` timestamp against the current UTC time.
     Returns True if the token is missing, has no entry, or is past expiry.
     """
     if not token_entry:
         return True
-    expires_at = datetime.fromisoformat(token_entry["expires_at"])
+    
+    expires_at_str = token_entry.get("expires_at")
+    if not expires_at_str:
+        return True
+    
+    expires_at = datetime.fromisoformat(expires_at_str)
     return datetime.utcnow() >= expires_at

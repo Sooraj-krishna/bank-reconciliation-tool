@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
-import api from "../api/client";
+import { useNavigate } from "react-router-dom";
 import ErrorAlert from "../components/ErrorAlert";
 import { useAppContext } from "../contexts/AppContext";
 
@@ -15,38 +15,40 @@ import { useAppContext } from "../contexts/AppContext";
  * Home - The main landing page component.
  *
  * Responsibilities:
- *   1. Ping the /health endpoint on mount to verify backend connectivity.
- *   2. Display a loading indicator while the check is in progress.
+ *   1. Check backend connectivity via shared AppContext.
+ *   2. Display the connection status.
  *   3. Show an ErrorAlert if a global error is set in AppContext.
  *   4. Provide a "Connect to Xero" button that navigates to the OAuth login URL.
+ *   5. Redirect to Dashboard if already connected.
  *
  * @returns {JSX.Element} The home page UI.
  */
 export default function Home() {
   // Pull shared state and mutators from the global AppContext
-  const { error, showError, clearError, isConnected, setIsConnected } = useAppContext();
+  const { error, showError, clearError, isConnected, sessionId, checkBackendConnection } = useAppContext();
+  const navigate = useNavigate();
   // Local loading state while the health check is in flight
   const [loading, setLoading] = useState(true);
 
   /**
    * Health-check effect: runs once on mount.
-   * Sends a GET request to /health to verify the backend is reachable.
-   * On success → sets isConnected to true.
-   * On failure → shows a user-facing error via the global context.
+   * Uses shared checkBackendConnection from context.
+   * Redirects to dashboard if session exists.
    */
   useEffect(() => {
-    api.get("/health")
-      .then((res) => {
-        console.log("Backend response:", res.data);
-        setIsConnected(true); // mark backend as reachable
-        setLoading(false);    // hide the loading spinner
-      })
-      .catch((err) => {
-        console.error("Error:", err);
-        showError("Unable to connect to backend. Please try again.");
-        setLoading(false);
-      });
-  }, [setIsConnected, showError]); // safe dependencies (stable references)
+    checkBackendConnection();
+    setLoading(false);
+    
+    // If already connected with session, redirect to dashboard
+    if (sessionId) {
+      navigate("/dashboard");
+    }
+  }, [checkBackendConnection, sessionId, navigate]);
+
+  const handleConnect = () => {
+    // Redirect to backend OAuth login
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://127.0.0.1:8000')}/auth/login`;
+  };
 
   return (
     // Full-page centered card layout
@@ -74,9 +76,13 @@ export default function Home() {
           <p className="text-gray-400 animate-pulse">
             Checking backend...
           </p>
-        ) : (
+        ) : isConnected ? (
           <p className="text-green-500 font-medium mb-4">
             Backend Connected
+          </p>
+        ) : (
+          <p className="text-red-500 font-medium mb-4">
+            Backend Disconnected
           </p>
         )}
 
@@ -86,9 +92,7 @@ export default function Home() {
          * The base URL mirrors the logic in api/client.js.
          */}
         <button
-          onClick={() => {
-            window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://127.0.0.1:8000')}/auth/login`;
-          }}
+          onClick={handleConnect}
           className="w-full mt-4 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
         >
           Connect to Xero

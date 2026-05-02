@@ -18,7 +18,7 @@ from app.core.config import (
     XERO_REDIRECT_URI,
     FRONTEND_URL
 )
-from app.services.token_store import store_tokens
+from app.services.token_store import store_tokens, get_tokens, is_token_expired
 
 router = APIRouter()
 
@@ -104,7 +104,9 @@ def callback(
         token_data = resp.json()
 
         # Persist the token payload in the server-side token store; returns a session identifier
-        session_id = store_tokens("", token_data)
+        import uuid
+        session_id = str(uuid.uuid4())
+        store_tokens(session_id, token_data)
 
         # Set an httponly, secure cookie so the session ID travels on every subsequent request
         # and cannot be accessed by client-side JavaScript (mitigates XSS token theft)

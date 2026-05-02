@@ -11,14 +11,22 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import ALLOWED_ORIGINS
-from app.api import auth
+from app.core.database import engine, Base
+from app.models import token
+from app.api import auth, invoices
 
 # Create the FastAPI application instance — this is the ASGI entry point
 app = FastAPI()
 
+# Create database tables on startup
+Base.metadata.create_all(bind=engine)
+
 # Mount the auth router under the /auth prefix so endpoints like
 # /auth/login and /auth/callback are automatically registered
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+
+# Mount the invoices router under /api prefix
+app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 
 
 # Attach CORS middleware so the React frontend (running on a different

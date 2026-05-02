@@ -6,7 +6,8 @@
  *   so any descendant can read and update this shared state.
  */
 
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import api from "../api/client";
 
 // Create the context object; components will subscribe to this.
 const AppContext = createContext();
@@ -22,13 +23,24 @@ const AppContext = createContext();
  *   isConnected: boolean,
  *   setIsConnected: function,
  *   sessionId: string|null,
- *   setSessionId: function
+ *   setSessionId: function,
+ *   checkBackendConnection: function
  * }} The full context value.
  */
 export function useAppContext() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useAppContext must be used within AppProvider");
   return ctx;
+}
+
+/**
+ * Get cookie value by name
+ */
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
 }
 
 /**
@@ -65,6 +77,31 @@ export function AppProvider({ children }) {
     setError(null);
   }, []);
 
+  /**
+   * checkBackendConnection - Pings the backend /health endpoint
+   * and updates isConnected state.
+   */
+  const checkBackendConnection = useCallback(() => {
+    api.get("/health")
+      .then((res) => {
+        console.log("Backend response:", res.data);
+        setIsConnected(true);
+      })
+      .catch((err) => {
+        console.error("Backend connection error:", err);
+        setIsConnected(false);
+      });
+  }, []);
+
+  // Check for existing session and backend connection on mount
+  useEffect(() => {
+    const existingSessionId = getCookie("xero_session_id");
+    if (existingSessionId) {
+      setSessionId(existingSessionId);
+    }
+    checkBackendConnection();
+  }, [checkBackendConnection]);
+
   // Provide state and setters/mutators to all descendant components
   return (
     <AppContext.Provider
@@ -76,6 +113,7 @@ export function AppProvider({ children }) {
         setIsConnected,
         sessionId,
         setSessionId,
+        checkBackendConnection,
       }}
     >
       {children}
