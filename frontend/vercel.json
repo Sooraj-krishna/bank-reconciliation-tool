@@ -7,6 +7,10 @@
     {
       "source": "/api/proxy/:path*",
       "destination": "https://bank-reconciliation-tool.onrender.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
