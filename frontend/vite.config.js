@@ -15,5 +15,9 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    // Ensure the app works when deployed to Vercel
+    outDir: 'dist'
   }
 })

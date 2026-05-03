@@ -42,7 +42,8 @@ export default function Dashboard() {
       try {
         const response = await api.get("/api/invoices");
         if (!cancelled) {
-          setInvoices(response.data.invoices || []);
+          const data = response.data;
+          setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
           setLoading(false);
         }
       } catch (err) {
@@ -53,6 +54,7 @@ export default function Dashboard() {
             navigate("/");
           } else {
             showError("Failed to fetch invoices from Xero. Please try again.");
+            setInvoices([]);
             setLoading(false);
           }
         }
@@ -71,14 +73,17 @@ export default function Dashboard() {
     }
   };
 
-  const sorted = [...invoices].sort((a, b) => {
+  // Safely get sorted invoices
+  const sorted = Array.isArray(invoices) ? [...invoices].sort((a, b) => {
     const field = sortField === 'Amount' ? (a.Total ?? 0) - (b.Total ?? 0) : new Date(a[sortField]) - new Date(b[sortField]);
     return sortDir === 'asc' ? field : -field;
-  });
+  }) : [];
 
-  const totalAmount = invoices.reduce((sum, inv) => sum + (inv.Total ?? 0), 0);
-  const paid = invoices.filter(i => i.Status === 'PAID');
-  const authorised = invoices.filter(i => i.Status === 'AUTHORISED');
+  // Safely compute stats
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
+  const totalAmount = safeInvoices.reduce((sum, inv) => sum + (inv.Total ?? 0), 0);
+  const paid = safeInvoices.filter(i => i.Status === 'PAID');
+  const authorised = safeInvoices.filter(i => i.Status === 'AUTHORISED');
 
   if (loading) {
     return (
@@ -129,7 +134,7 @@ export default function Dashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Total Invoices" value={invoices.length} />
+          <StatCard label="Total Invoices" value={safeInvoices.length} />
           <StatCard label="Total Amount" value={`£${totalAmount.toLocaleString()}`} />
           <StatCard label="Paid" value={paid.length} sub={`£${paid.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString()}`} />
           <StatCard label="Awaiting Payment" value={authorised.length} sub={`£${authorised.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString()}`} />
@@ -138,13 +143,13 @@ export default function Dashboard() {
         {/* Table Card */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="font-semibold text-[#1A1A1A]">All Invoices ({invoices.length})</h2>
+            <h2 className="font-semibold text-[#1A1A1A]">All Invoices ({safeInvoices.length})</h2>
             <div className="text-sm text-[#64748B]">
               Sorted by {sortField} ({sortDir})
             </div>
           </div>
 
-          {invoices.length === 0 ? (
+          {safeInvoices.length === 0 ? (
             <div className="text-center py-16">
               <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

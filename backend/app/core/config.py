@@ -25,6 +25,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # Also includes common localhost ports for development (5173 for Vite, 3000 for CRA, etc.)
 _origins_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [origin.strip() for origin in _origins_env.split(",") if origin.strip()]
+
 # Add localhost origins for development if not already present
 _localhost_origins = [
     "http://localhost:5173",  # Vite dev server
@@ -35,6 +36,10 @@ _localhost_origins = [
 for origin in _localhost_origins:
     if origin not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append(origin)
+
+# Support Vercel preview deployments (e.g., project-git-branch.vercel.app)
+# This is handled by allow_origin_regex in main.py, but we can also add common patterns here
+# The actual regex is: r"https://.*\.vercel\.app$"
 
 # Xero OAuth2 application credentials — registered at https://developer.xero.com
 XERO_CLIENT_ID = os.getenv("XERO_CLIENT_ID")

@@ -114,36 +114,37 @@ def upload_csv(
             detail="No valid rows found in CSV. Check that the file has Date, Amount, and Description columns."
         )
 
-        # Bulk insert into database - use parameterized queries via SQLAlchemy ORM (injection-safe)
-        db = SessionLocal()
-        try:
-            rows_to_insert = []
-            for row in result["rows"]:
-                # Validate/sanitize each field before DB insert
-                clean_filename = sanitize_filename(row["filename"])
-                clean_date = row["transaction_date"][:10]  # YYYY-MM-DD is max 10 chars
-                clean_desc = (row["description"] or "")[:500]  # Limit description length
-                clean_raw = (row["raw_description"] or "")[:500]
-                clean_amount = float(row["amount"]) if row["amount"] is not None else 0.0
-                clean_duplicate = bool(row["is_duplicate"])
-                
-                rows_to_insert.append(BankStatement(
-                    upload_id=row["upload_id"],  # UUID - safe
-                    filename=clean_filename,
-                    session_id=row["session_id"],  # Could be None (nullable)
-                    transaction_date=clean_date,
-                    description=clean_desc,
-                    raw_description=clean_raw,
-                    amount=clean_amount,
-                    is_duplicate=clean_duplicate,
-                ))
-            db.bulk_save_objects(rows_to_insert)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to save to database. Please try again.")
-        finally:
-            db.close()
+    # Bulk insert into database - use parameterized queries via SQLAlchemy ORM (injection-safe)
+    db = SessionLocal()
+    try:
+        rows_to_insert = []
+        for row in result["rows"]:
+            # Validate/sanitize each field before DB insert
+            clean_filename = sanitize_filename(row["filename"])
+            clean_date = row["transaction_date"][:10]  # YYYY-MM-DD is max 10 chars
+            clean_desc = (row["description"] or "")[:500]  # Limit description length
+            clean_raw = (row["raw_description"] or "")[:500]
+            clean_amount = float(row["amount"]) if row["amount"] is not None else 0.0
+            clean_duplicate = bool(row["is_duplicate"])
+            
+            rows_to_insert.append(BankStatement(
+                upload_id=row["upload_id"],  # UUID - safe
+                filename=clean_filename,
+                session_id=row["session_id"],  # Could be None (nullable)
+                transaction_date=clean_date,
+                description=clean_desc,
+                raw_description=clean_raw,
+                amount=clean_amount,
+                is_duplicate=clean_duplicate,
+            ))
+        db.bulk_save_objects(rows_to_insert)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"DB Error during upload: {str(e)}") # Log for server-side debugging
+        raise HTTPException(status_code=500, detail="Failed to save to database. Please try again.")
+    finally:
+        db.close()
 
     return {
         "upload_id": upload_id,

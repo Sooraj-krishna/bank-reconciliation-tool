@@ -13,15 +13,28 @@ import axios from "axios";
  *
  * baseURL resolution order:
  *   1. VITE_API_BASE_URL env var (explicit override)
- *   2. In production → "/api" (relative path, assumes reverse proxy)
- *   3. In development → "http://127.0.0.1:8000" (local FastAPI server)
+ *   2. In production → "/api" (relative path, assumes Vercel rewrite)
+ *   3. In development → "http://localhost:8000" (local FastAPI server)
  *
  * withCredentials: true → sends cookies (for session auth)
  */
+const getBaseURL = () => {
+  // Explicit override via env var
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  // Production: assume Vercel rewrite handles /api/proxy → backend
+  if (import.meta.env.PROD) {
+    return "/api/proxy";
+  }
+
+  // Development: local backend
+  return "http://localhost:8000";
+};
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ??
-    (import.meta.env.PROD ? "/api" : "http://localhost:8000"),
+  baseURL: getBaseURL(),
   withCredentials: true,
 });
 

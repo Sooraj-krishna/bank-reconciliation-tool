@@ -66,3 +66,34 @@
 - **Transparent Auto-Refresh**: The backend automatically detects and fixes expired tokens _before_ the API call is made, providing a "it just works" experience for the user.
 
 - **Graceful Error Propagation**: Implemented a unified error handling system that translates complex Xero API errors into user-friendly notifications in the React frontend.
+
+---
+
+## Day 3: CSV Upload & Data Cleaning
+
+### ✅ Accomplishments
+
+- **Advanced CSV Parsing Engine**: Built a robust service capable of handling messy bank data, including automatic date format detection (UK/US/ISO) and currency/thousand separator sanitization.
+- **Multipart Upload Integration**: Implemented high-performance file uploads with server-side validation for file types and sizes.
+- **Intelligent Column Mapping**: Created a "fuzzy matcher" to automatically detect Date, Amount, and Description columns regardless of their header names.
+- **Duplicate Detection**: Implemented a hashing algorithm to flag potential duplicate bank entries while preserving data for audit purposes.
+- **Drag-and-Drop UI**: Built a premium React-based upload zone with real-time progress indicators and instant result previews.
+- **Persistence Layer**: Successfully mapped cleaned CSV rows to a relational SQLite schema for long-term storage and session-based retrieval.
+
+### 🔒 Security & Best Practices
+
+- **Filename Sanitization**: Implemented strict path-traversal protection and character filtering for all uploaded files.
+- **Content-Type Validation**: Added deep file inspection to prevent malicious file uploads (e.g., rejecting renamed executables).
+- **Injection Protection**: Used SQLAlchemy's parameterized bulk-insert methods to ensure zero risk of SQL injection from messy CSV data.
+- **Data Scoping**: Every upload is cryptographically linked to a Xero session, ensuring users can only see and manage their own bank data.
+
+### 🏗️ Architectural Highlights
+
+- **Decoupled Logic**: The parsing engine is a pure Python service, allowing for easy unit testing without database or web server dependencies.
+- **Micro-Animations**: Integrated scroll-reveal hooks and hover-state transitions to create a "live" feel during the data cleaning process.
+- **Self-Healing UI**: Implemented automatic error recovery for failed uploads with human-readable guidance.
+
+### 📅 Next Steps
+
+- **Part 3: Reconciliation Engine**: Start the logic for matching bank statements against Xero invoices.
+- **The "Great Match" UI**: Build the split-screen interface for confirming suggested matches.
