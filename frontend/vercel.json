@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/auth/:path*",
+      "destination": "https://bank-reconciliation-tool.onrender.com/auth/:path*"
+    },
+    {
       "source": "/api/proxy/:path*",
       "destination": "https://bank-reconciliation-tool.onrender.com/:path*"
     }
