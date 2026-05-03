@@ -223,13 +223,19 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
 
     Args:
         file_bytes: Raw bytes of the uploaded CSV file
-        filename: Original filename (for storing in DB)
+        filename: Original filename (for storing in DB) - sanitized before storage
         upload_id: UUID to group all rows from this upload
         session_id: Xero session ID (for auth scoping)
 
     Returns:
         Dict with: upload_id, filename, row_count, duplicate_count, rows[]
     """
+    # Sanitize filename - defense in depth (also done in API layer)
+    import re
+    filename = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]  # Strip path
+    filename = re.sub(r'[^a-zA-Z0-9._\-]', '', filename)  # Only safe chars
+    filename = filename[:255] if filename else "unnamed_file.csv"
+
     # Decode bytes - try utf-8 first, fall back to latin-1 for weird encodings
     try:
         content = file_bytes.decode("utf-8-sig")  # utf-8-sig handles BOM

@@ -12,11 +12,34 @@ GET/DELETE endpoints use session_id to scope uploads to a session.
 """
 
 import uuid
+import re
 from fastapi import APIRouter, UploadFile, File, HTTPException, Cookie, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db, SessionLocal
 from app.services.csv_parser import parse_csv
 from app.models.bank_statement import BankStatement
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize filename to prevent SQL injection and path traversal attacks.
+
+    - Removes path components (../, /etc.)
+    - Removes NULL bytes
+    - Limits length to 255 chars
+    - Allows only safe characters (alphanumeric, dots, hyphens, underscores)
+    """
+    # Remove path components - get just the filename
+    filename = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    # Remove NULL bytes
+    filename = filename.replace("\x00", "")
+    # Keep only safe characters: alphanumeric, dots, hyphens, underscores
+    filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
+    # Limit length
+    if len(filename) > 255:
+        name, ext = filename.rsplit(".", 1) if "." in filename else (filename, "")
+        filename = name[:250] + ("." + ext if ext else "")
+    return filename or "unnamed_file.csv"
 
 router = APIRouter()
 
@@ -57,7 +80,8 @@ def upload_csv(
     """
     # Validate file type - reject non-CSV files
     content_type = file.content_type or ""
-    filename = file.filename or ""
+    raw_filename = file.filename or ""
+    filename = sanitize_filename(raw_filename)
     
     if not filename.lower().endswith(".csv") and "csv" not in content_type.lower() and "text/" not in content_type.lower():
         raise HTTPException(
@@ -75,7 +99,7 @@ def upload_csv(
         raise HTTPException(status_code=400, detail="File is empty. Please upload a valid CSV file.")
     
     # Generate upload ID and parse CSV
-    upload_id = str(uuid.uuid4())
+    upload_id = str(uuid.uuid4())  # UUID is safe - no injection risk
     session_id = xero_session_id if xero_session_id else None
     result = None
     
@@ -90,28 +114,36 @@ def upload_csv(
             detail="No valid rows found in CSV. Check that the file has Date, Amount, and Description columns."
         )
 
-    # Bulk insert into database
-    db = SessionLocal()
-    try:
-        rows_to_insert = []
-        for row in result["rows"]:
-            rows_to_insert.append(BankStatement(
-                upload_id=row["upload_id"],
-                filename=row["filename"],
-                session_id=row["session_id"],
-                transaction_date=row["transaction_date"],
-                description=row["description"],
-                raw_description=row["raw_description"],
-                amount=row["amount"],
-                is_duplicate=row["is_duplicate"],
-            ))
-        db.bulk_save_objects(rows_to_insert)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to save to database: {str(e)}")
-    finally:
-        db.close()
+        # Bulk insert into database - use parameterized queries via SQLAlchemy ORM (injection-safe)
+        db = SessionLocal()
+        try:
+            rows_to_insert = []
+            for row in result["rows"]:
+                # Validate/sanitize each field before DB insert
+                clean_filename = sanitize_filename(row["filename"])
+                clean_date = row["transaction_date"][:10]  # YYYY-MM-DD is max 10 chars
+                clean_desc = (row["description"] or "")[:500]  # Limit description length
+                clean_raw = (row["raw_description"] or "")[:500]
+                clean_amount = float(row["amount"]) if row["amount"] is not None else 0.0
+                clean_duplicate = bool(row["is_duplicate"])
+                
+                rows_to_insert.append(BankStatement(
+                    upload_id=row["upload_id"],  # UUID - safe
+                    filename=clean_filename,
+                    session_id=row["session_id"],  # Could be None (nullable)
+                    transaction_date=clean_date,
+                    description=clean_desc,
+                    raw_description=clean_raw,
+                    amount=clean_amount,
+                    is_duplicate=clean_duplicate,
+                ))
+            db.bulk_save_objects(rows_to_insert)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Failed to save to database. Please try again.")
+        finally:
+            db.close()
 
     return {
         "upload_id": upload_id,
