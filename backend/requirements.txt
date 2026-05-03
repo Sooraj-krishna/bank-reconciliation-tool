@@ -4,3 +4,4 @@ python-dotenv
 requests
 uvicorn
 sqlalchemy
+python-multipart

@@ -22,8 +22,19 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 
 # Parse the comma-separated ALLOWED_ORIGINS string into a Python list.
 # Example: "http://localhost:3000,https://example.com" → ["http://localhost:3000", "https://example.com"]
+# Also includes common localhost ports for development (5173 for Vite, 3000 for CRA, etc.)
 _origins_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [origin.strip() for origin in _origins_env.split(",") if origin.strip()]
+# Add localhost origins for development if not already present
+_localhost_origins = [
+    "http://localhost:5173",  # Vite dev server
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",  # Alternative React port
+    "http://localhost:8000",  # Backend itself (for testing)
+]
+for origin in _localhost_origins:
+    if origin not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(origin)
 
 # Xero OAuth2 application credentials — registered at https://developer.xero.com
 XERO_CLIENT_ID = os.getenv("XERO_CLIENT_ID")

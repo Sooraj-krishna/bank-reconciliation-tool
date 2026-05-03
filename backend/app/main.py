@@ -13,12 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import ALLOWED_ORIGINS
 from app.core.database import engine, Base
 from app.models import token
-from app.api import auth, invoices
+from app.api import auth, invoices, upload
 
 # Create the FastAPI application instance — this is the ASGI entry point
 app = FastAPI()
 
-# Create database tables on startup
+# Create database tables on startup (including new bank_statements table)
 Base.metadata.create_all(bind=engine)
 
 # Mount the auth router under the /auth prefix so endpoints like
@@ -27,6 +27,9 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 # Mount the invoices router under /api prefix
 app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
+
+# Mount the upload router under /api prefix for CSV upload endpoints
+app.include_router(upload.router, prefix="/api", tags=["Upload"])
 
 # Attach CORS middleware so the React frontend (running on a different
 # origin/port) can make cross-origin requests to this API.

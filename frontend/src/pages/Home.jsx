@@ -147,7 +147,7 @@ export default function Home() {
               AI-powered matching connects your bank statements to Xero invoices automatically. No more spreadsheet hell.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={handleConnect} className="bg-[#059669] text-white px-8 py-4 rounded-full font-semibold hover:bg-emerald-700 transition shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
+              <button onClick={handleConnect} className="bg-[#059669] text-white px-8 py-4 rounded-full font-semibold hover:bg-emerald-700 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
                 Start Free Trial
               </button>
               <button onClick={() => setShowVideo(true)} className="flex items-center justify-center gap-2 px-8 py-4 rounded-full border-2 border-[#1A1A1A]/20 font-medium hover:border-[#1A1A1A]/40 transition">

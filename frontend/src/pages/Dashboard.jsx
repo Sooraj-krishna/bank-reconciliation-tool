@@ -20,10 +20,10 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const StatCard = ({ label, value, sub, color = 'emerald' }) => (
+const StatCard = ({ label, value, sub }) => (
   <div className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
     <p className="text-sm text-[#64748B] mb-1">{label}</p>
-    <p className={`text-2xl font-bold text-[#1A1A1A]`}>{value}</p>
+    <p className="text-2xl font-bold text-[#1A1A1A]">{value}</p>
     {sub && <p className="text-xs text-[#64748B] mt-1">{sub}</p>}
   </div>
 );
@@ -102,10 +102,21 @@ export default function Dashboard() {
             <div className="font-serif font-bold text-xl text-[#1A1A1A]">BankSync</div>
             <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-medium">Connected to Xero</span>
           </div>
-          <button onClick={handleDisconnect} className="text-sm text-red-500 hover:text-red-700 font-medium transition flex items-center gap-1.5">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-            Disconnect
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/upload")}
+              className="text-sm bg-[#059669] text-white px-4 py-2 rounded-full hover:bg-emerald-700 transition flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload Statement
+            </button>
+            <button onClick={handleDisconnect} className="text-sm text-red-500 hover:text-red-700 font-medium transition flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              Disconnect
+            </button>
+          </div>
         </div>
       </header>
 
