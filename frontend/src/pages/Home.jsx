@@ -35,7 +35,9 @@ export default function Home() {
   }, [checkXeroSession, isConnected, navigate]);
 
   const handleConnect = () => {
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '' : 'http://localhost:8000')}/auth/login`;
+    // Use a relative path so it goes through the Vercel proxy in production
+    // or the Vite proxy/absolute URL in development.
+    window.location.href = `/auth/login`;
   };
 
   return (
