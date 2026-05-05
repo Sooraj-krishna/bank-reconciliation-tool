@@ -187,8 +187,11 @@ def _guess_columns(headers: list[str]) -> dict:
     debit_col = None
     credit_col = None
 
+    amount_aliases = ["amount", "amt", "value", "total"]
+
     for i, h in enumerate(headers_lower):
-        if h in ["amount", "amt"]:
+        # Fuzzy match for amount
+        if any(alias in h for alias in amount_aliases):
             amount_col = headers[i]
             break
         if h in ["debit", "withdrawal", "dr"]:
