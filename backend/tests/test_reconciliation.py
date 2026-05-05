@@ -70,3 +70,23 @@ def test_bucket_sorting():
     assert report["summary"]["matched_count"] == 1
     assert report["summary"]["unmatched_bank_count"] == 1
     assert report["summary"]["unmatched_xero_count"] == 1
+
+def test_ambiguity_handling():
+    """
+    Test: Two identical matches for one bank row should move to 'Possible'.
+    """
+    bank_rows = [
+        {"amount": 31.39, "transaction_date": "2025-01-01", "description": "Xero Payment"}
+    ]
+    xero_invoices = [
+        {"InvoiceID": "A", "Total": 31.39, "DateString": "2025-01-01", "InvoiceNumber": "INV-A"},
+        {"InvoiceID": "B", "Total": 31.39, "DateString": "2025-01-01", "InvoiceNumber": "INV-B"}
+    ]
+    
+    report = run_reconciliation(bank_rows, xero_invoices)
+    
+    # Should NOT be in matched (because it's ambiguous)
+    assert report["summary"]["matched_count"] == 0
+    # Should be in possible
+    assert report["summary"]["possible_count"] == 1
+    assert report["buckets"]["possible"][0]["is_ambiguous"] == True

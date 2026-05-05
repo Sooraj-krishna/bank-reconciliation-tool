@@ -12,7 +12,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import ALLOWED_ORIGINS
 from app.core.database import engine, Base
-from app.models import token
+from app.models.token import Token
+from app.models.bank_statement import BankStatement
 from app.api import auth, invoices, upload, reconciliation
 
 # Create the FastAPI application instance — this is the ASGI entry point
