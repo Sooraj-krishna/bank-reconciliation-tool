@@ -172,45 +172,58 @@ export default function Reconcile() {
         </div>
 
         {/* Controls Bar */}
-        <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+        <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center mb-8 bg-white p-4 rounded-3xl border border-gray-100 shadow-sm">
           {/* Bucket Navigation Tabs */}
-          <div className="flex gap-2 bg-gray-100/50 p-1 rounded-xl w-full md:w-fit overflow-x-auto">
+          <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl w-full lg:w-fit overflow-x-auto scrollbar-hide">
             {["matched", "possible", "unmatched_bank", "unmatched_xero"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => { setActiveTab(tab); setSearchTerm(""); }}
-                className={`px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap uppercase tracking-widest ${
                   activeTab === tab 
-                  ? "bg-white text-[#1A1A1A] shadow-sm" 
-                  : "text-[#64748B] hover:text-[#1A1A1A]"
+                  ? "bg-white text-[#059669] shadow-md shadow-emerald-500/10 scale-[1.02]" 
+                  : "text-[#64748B] hover:text-[#1A1A1A] hover:bg-gray-100/50"
                 }`}
               >
-                {tab.replace("_", " ").toUpperCase()}
+                {tab.replace("_", " ")}
               </button>
             ))}
           </div>
 
-          <div className="flex gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+            {/* Search Input */}
+            <div className="relative group flex-1 sm:w-72">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400 group-focus-within:text-[#059669] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
               <input 
                 type="text" 
-                placeholder="Search report..." 
-                className="w-full bg-white border border-gray-200 pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition"
+                placeholder={`Search ${activeTab.replace("_", " ")}...`}
+                className="w-full bg-gray-50 border-none pl-11 pr-4 py-3 rounded-2xl text-sm font-medium placeholder:text-gray-400 focus:ring-2 focus:ring-[#059669]/20 focus:bg-white transition-all shadow-inner"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <select 
-              className="bg-white border border-gray-200 px-4 py-2 rounded-xl text-sm font-medium focus:outline-none transition"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="date-desc">Newest First</option>
-              <option value="date-asc">Oldest First</option>
-              <option value="amount-desc">Amount (High to Low)</option>
-              <option value="amount-asc">Amount (Low to High)</option>
-            </select>
+
+            {/* Sort Dropdown */}
+            <div className="relative sm:w-56">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
+              </div>
+              <select 
+                className="w-full appearance-none bg-gray-50 border-none pl-11 pr-10 py-3 rounded-2xl text-sm font-bold text-[#1A1A1A] focus:ring-2 focus:ring-[#059669]/20 focus:bg-white transition-all cursor-pointer shadow-inner"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="amount-desc">Highest Amount</option>
+                <option value="amount-asc">Lowest Amount</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
         </div>
 
