@@ -93,7 +93,42 @@
 - **Micro-Animations**: Integrated scroll-reveal hooks and hover-state transitions to create a "live" feel during the data cleaning process.
 - **Self-Healing UI**: Implemented automatic error recovery for failed uploads with human-readable guidance.
 
-### 📅 Next Steps
+---
 
-- **Part 3: Reconciliation Engine**: Start the logic for matching bank statements against Xero invoices.
-- **The "Great Match" UI**: Build the split-screen interface for confirming suggested matches.
+## Day 4:
+
+---
+
+## Day 5: Reconciliation Engine & Intelligent Matching
+
+### ✅ Accomplishments
+
+- **4-Tier Deterministic Matching Engine**: Engineered a priority-based matching system that categorizes transactions into Matched (85%+), Possible (60-84%), and Unmatched buckets based on a strict 0-100 confidence scale.
+- **Ambiguity & "Clash" Detection**: Implemented a sophisticated conflict-resolution layer that identifies when a bank transaction matches multiple invoices equally. These are automatically flagged as **Ambiguous** and moved to the **Possible** bucket for human review.
+- **Advanced Search & Ranking**: Developed a real-time filtering system with **Relevance Ranking**, prioritizing results that _start with_ the search term to improve user efficiency.
+- **Premium UI Overhaul**: Designed and implemented a responsive, "Apple-esque" Controls Bar featuring glassmorphism tabs, custom-styled sort controls, and mobile-optimized layouts.
+- **Robust Persistence Layer**: Migrated all statement and reconciliation data to **Tenant-ID scoped storage**, ensuring that matching results are tied to the Xero Organisation and persist across user sessions.
+- **Dashboard Synchronization**: Integrated invoice dates and a new **Cyan-themed** status indicator into the main Dashboard for a cohesive and modern user experience.
+
+### 🚩 Challenges & Solutions
+
+- **The Xero Date Nightmare**: Xero's internal `/Date(ms)/` format made it impossible to perform standard date arithmetic or display readable dates in the UI.
+  - _Solution_: Built a dual-ended regex normalization engine in both Python and React to convert raw API dates into ISO standards before they reach the logic or the user.
+- **The "Match Clashing" Problem**: Initial logic was matching bank transactions to the first invoice found, leading to "silent errors" when multiple similar invoices existed.
+  - _Solution_: Implemented a "Match Clashing" pass that detects multiple candidates of equal score and flags the transaction as Ambiguous rather than auto-matching.
+- **Search Logic Complexity**: Filtering across three different data shapes (Matched Pairs, Unmatched Bank, and Unmatched Xero) was causing search failures.
+  - _Solution_: Implemented a **Normalize-Extract Pattern** (`getNormData`) that flattens any data type into a standard interface for the search and sort logic.
+
+### 🔒 Security & Best Practices
+
+- **Strict Tenant Isolation**: Enforced hard-scoping of all database transactions by the `tenant_id`, ensuring zero data leakage between different Xero organizations.
+- **One-to-One Matching Registry**: Built a stateful used-invoice registry to ensure that no single Xero invoice is ever matched against more than one bank transaction in a single run.
+- **Deterministic Processing**: Enforced strict pre-matching sorting (Date -> Amount -> ID) to guarantee that the reconciliation engine produces identical results every time it runs on the same data.
+
+### 🏗️ Architectural Highlights
+
+- **Multi-Pass Scoring Strategy**: The engine runs in three distinct passes—Deterministic (Exact), Heuristic (Fuzzy), and Contextual (Contact Match)—to build a high-precision confidence score.
+- **Universal Normalization Layer**: The frontend uses a unified normalization layer, allowing the same search, sort, and display logic to work seamlessly across all four buckets.
+- **Stateful SQL Persistence**: Switched from transient session storage to a persistent SQLite backend linked to the user's Xero identity, allowing for "resume-anywhere" reconciliation.
+
+---
