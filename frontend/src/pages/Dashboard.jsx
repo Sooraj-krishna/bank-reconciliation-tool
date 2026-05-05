@@ -7,14 +7,14 @@ import { useAppContext } from "../hooks/useAppContext";
 const StatusBadge = ({ status }) => {
   const styles = {
     AUTHORISED: 'bg-amber-100 text-amber-800 border-amber-200',
-    PAID: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    PAID: 'bg-cyan-100 text-cyan-800 border-cyan-200',
     VOIDED: 'bg-red-100 text-red-800 border-red-200',
     DRAFT: 'bg-gray-100 text-gray-600 border-gray-200',
     SUBMITTED: 'bg-blue-100 text-blue-800 border-blue-200',
   };
   return (
     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === 'PAID' ? 'bg-emerald-500' : status === 'AUTHORISED' ? 'bg-amber-500' : 'bg-gray-400'}`} />
+      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${status === 'PAID' ? 'bg-cyan-500' : status === 'AUTHORISED' ? 'bg-amber-500' : 'bg-gray-400'}`} />
       {status || "N/A"}
     </span>
   );
