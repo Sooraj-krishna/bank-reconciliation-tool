@@ -20,6 +20,20 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const formatDate = (dateInput) => {
+  if (!dateInput) return "N/A";
+  // Handle Xero's /Date(1714915200000+0000)/ format
+  if (typeof dateInput === "string" && dateInput.includes("/Date(")) {
+    const match = dateInput.match(/\d+/);
+    if (!match) return "N/A";
+    const ms = parseInt(match[0]);
+    return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  // Handle standard date strings
+  const date = new Date(dateInput);
+  return isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 const StatCard = ({ label, value, sub }) => (
   <div className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
     <p className="text-sm text-[#64748B] mb-1">{label}</p>
@@ -177,10 +191,10 @@ export default function Dashboard() {
                       </td>
                       <td className="py-4 px-6 text-sm text-[#64748B]">{inv.Contact?.Name || "N/A"}</td>
                       <td className="py-4 px-6 text-sm text-[#64748B]">
-                        {inv.Date ? new Date(inv.Date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A"}
+                        {formatDate(inv.Date || inv.DateString)}
                       </td>
                       <td className="py-4 px-6 text-sm text-[#64748B]">
-                        {inv.DueDate ? new Date(inv.DueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A"}
+                        {formatDate(inv.DueDate || inv.DueDateString)}
                       </td>
                       <td className="py-4 px-6 font-semibold text-[#1A1A1A]">
                         {(inv.Total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
