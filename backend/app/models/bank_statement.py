@@ -33,7 +33,7 @@ class BankStatement(Base):
     upload_id = Column(String, index=True, nullable=False)
     filename = Column(String, nullable=False)
     uploaded_at = Column(DateTime, server_default=func.now())
-    session_id = Column(String, index=True, nullable=True)  # Nullable for uploads without Xero session
+    tenant_id = Column(String, index=True, nullable=True)  # Nullable for uploads without Xero session
     transaction_date = Column(String, nullable=False)  # "YYYY-MM-DD" format
     description = Column(Text)
     raw_description = Column(Text)

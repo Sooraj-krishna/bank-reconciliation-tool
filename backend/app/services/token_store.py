@@ -12,7 +12,7 @@ from app.core.database import SessionLocal
 from app.models.token import Token
 
 
-def store_tokens(session_id: str, token_data: dict, db: Session = None) -> str:
+def store_tokens(session_id: str, token_data: dict, tenant_id: str = None, db: Session = None) -> str:
     """
     Persist a Xero token payload in the database.
     
@@ -44,6 +44,8 @@ def store_tokens(session_id: str, token_data: dict, db: Session = None) -> str:
             existing.scope = token_data.get("scope")
             existing.token_type = token_data.get("token_type")
             existing.id_token = token_data.get("id_token")
+            if tenant_id:
+                existing.tenant_id = tenant_id
             existing.expires_at = expires_at
         else:
             # Create new token entry
@@ -55,6 +57,7 @@ def store_tokens(session_id: str, token_data: dict, db: Session = None) -> str:
                 scope=token_data.get("scope"),
                 token_type=token_data.get("token_type"),
                 id_token=token_data.get("id_token"),
+                tenant_id=tenant_id,
                 expires_at=expires_at
             )
             db.add(new_token)
@@ -85,6 +88,7 @@ def get_tokens(session_id: str) -> dict | None:
             "scope": token.scope,
             "token_type": token.token_type,
             "id_token": token.id_token,
+            "tenant_id": token.tenant_id,
             "created_at": token.created_at.isoformat() if token.created_at else None,
             "expires_at": token.expires_at.isoformat() if token.expires_at else None
         }

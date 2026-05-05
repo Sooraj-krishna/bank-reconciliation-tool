@@ -45,9 +45,14 @@ def calculate_score(bank_row: Dict[str, Any], invoice: Dict[str, Any]) -> int:
     date_diff = abs((b_date - i_date).days)
     amt_diff_pct = abs(b_amt - i_amt) / i_amt if i_amt != 0 else 1.0
 
-    # Level 1: Perfect Match
+    # Level 1: Perfect Match (Same Day)
     if b_amt == i_amt and date_diff == 0 and (i_ref in b_desc or i_num in b_desc):
         return 100
+
+    # Level 1.5: Reference Match (Date Mismatch)
+    # If the reference is perfect, we can trust it even if the date is off (late payments)
+    if b_amt == i_amt and (i_ref in b_desc or i_num in b_desc):
+        return 90
 
     # Level 2: High Confidence
     if b_amt == i_amt and date_diff <= 3:

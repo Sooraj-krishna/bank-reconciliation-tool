@@ -44,21 +44,27 @@ def sanitize_filename(filename: str) -> str:
 router = APIRouter()
 
 
-def get_session_id(xero_session_id: str = Cookie(None)) -> str:
-    """
-    Dependency: extract session cookie for GET/DELETE endpoints.
+from app.services.token_store import get_tokens
 
-    Raises 401 if no session cookie is present.
+def get_current_tenant_id(xero_session_id: str = Cookie(None)) -> str:
+    """
+    Dependency: fetch the persistent Xero Tenant ID associated with the session.
+    Ensures data remains linked to the organisation even after re-login.
     """
     if not xero_session_id:
-        raise HTTPException(status_code=401, detail="No session cookie found. Please connect to Xero first.")
-    return xero_session_id
+        raise HTTPException(status_code=401, detail="No session found. Please connect to Xero.")
+    
+    tokens = get_tokens(xero_session_id)
+    if not tokens or not tokens.get("tenant_id"):
+        raise HTTPException(status_code=401, detail="Organisation ID not found. Please reconnect to Xero.")
+    
+    return tokens["tenant_id"]
 
 
 @router.post("/upload")
 def upload_csv(
     file: UploadFile = File(...),
-    xero_session_id: str = Cookie(None),  # Optional - not required for upload
+    tenant_id: str = Depends(get_current_tenant_id),
 ):
     """
     Upload and parse a bank statement CSV file.
@@ -99,12 +105,12 @@ def upload_csv(
         raise HTTPException(status_code=400, detail="File is empty. Please upload a valid CSV file.")
     
     # Generate upload ID and parse CSV
-    upload_id = str(uuid.uuid4())  # UUID is safe - no injection risk
-    session_id = xero_session_id if xero_session_id else None
+    upload_id = str(uuid.uuid4())
     result = None
     
     try:
-        result = parse_csv(file_bytes, filename, upload_id, session_id)
+        # We pass tenant_id to parse_csv so it can include it in rows
+        result = parse_csv(file_bytes, filename, upload_id, tenant_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse CSV: {str(e)}")
     
@@ -128,9 +134,9 @@ def upload_csv(
             clean_duplicate = bool(row["is_duplicate"])
             
             rows_to_insert.append(BankStatement(
-                upload_id=row["upload_id"],  # UUID - safe
+                upload_id=row["upload_id"],
                 filename=clean_filename,
-                session_id=row["session_id"],  # Could be None (nullable)
+                tenant_id=row["session_id"],  # We reused the session_id key in result rows
                 transaction_date=clean_date,
                 description=clean_desc,
                 raw_description=clean_raw,
@@ -156,7 +162,7 @@ def upload_csv(
 
 
 @router.get("/uploads")
-def list_uploads(xero_session_id: str = Depends(get_session_id)):
+def list_uploads(tenant_id: str = Depends(get_current_tenant_id)):
     """
     List all past uploads for the current session.
 
@@ -174,7 +180,7 @@ def list_uploads(xero_session_id: str = Depends(get_session_id)):
         # to avoid SQLAlchemy func.cast issues
         rows = (
             db.query(BankStatement)
-            .filter(BankStatement.session_id == xero_session_id)
+            .filter(BankStatement.tenant_id == tenant_id)
             .order_by(BankStatement.uploaded_at.desc())
             .all()
         )
@@ -203,7 +209,7 @@ def list_uploads(xero_session_id: str = Depends(get_session_id)):
 @router.get("/upload/{upload_id}")
 def get_upload(
     upload_id: str,
-    xero_session_id: str = Depends(get_session_id),
+    tenant_id: str = Depends(get_current_tenant_id),
 ):
     """
     Get all rows for a specific upload.
@@ -227,7 +233,7 @@ def get_upload(
             db.query(BankStatement)
             .filter(
                 BankStatement.upload_id == upload_id,
-                BankStatement.session_id == xero_session_id,
+                BankStatement.tenant_id == tenant_id,
             )
             .first()
         )
@@ -240,7 +246,7 @@ def get_upload(
             db.query(BankStatement)
             .filter(
                 BankStatement.upload_id == upload_id,
-                BankStatement.session_id == xero_session_id,
+                BankStatement.tenant_id == tenant_id,
             )
             .order_by(BankStatement.transaction_date.desc())
             .all()
@@ -268,7 +274,7 @@ def get_upload(
 @router.delete("/upload/{upload_id}")
 def delete_upload(
     upload_id: str,
-    xero_session_id: str = Depends(get_session_id),
+    tenant_id: str = Depends(get_current_tenant_id),
 ):
     """
     Delete all rows for a specific upload.
@@ -290,7 +296,7 @@ def delete_upload(
             db.query(BankStatement)
             .filter(
                 BankStatement.upload_id == upload_id,
-                BankStatement.session_id == xero_session_id,
+                BankStatement.tenant_id == tenant_id,
             )
             .count()
         )
@@ -301,7 +307,7 @@ def delete_upload(
         # Delete all rows for this upload
         db.query(BankStatement).filter(
             BankStatement.upload_id == upload_id,
-            BankStatement.session_id == xero_session_id,
+            BankStatement.tenant_id == tenant_id,
         ).delete()
 
         db.commit()

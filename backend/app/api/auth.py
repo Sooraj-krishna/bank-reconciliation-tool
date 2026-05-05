@@ -104,10 +104,24 @@ def callback(
 
         token_data = resp.json()
 
-        # Persist the token payload in the server-side token store; returns a session identifier
+        # Get the Xero Tenant ID (Organisation ID) to persist data across sessions
+        tenant_id = None
+        connections_resp = requests.get(
+            "https://api.xero.com/connections",
+            headers={
+                "Authorization": f"Bearer {token_data['access_token']}",
+                "Content-Type": "application/json",
+            },
+        )
+        if connections_resp.status_code == 200:
+            connections = connections_resp.json()
+            if connections:
+                tenant_id = connections[0].get("tenantId")
+
+        # Persist the token payload in the server-side token store
         import uuid
         session_id = str(uuid.uuid4())
-        store_tokens(session_id, token_data)
+        store_tokens(session_id, token_data, tenant_id=tenant_id)
 
         # Redirect to the frontend after successful authentication
         redir = RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
@@ -121,7 +135,7 @@ def callback(
             httponly=True,
             secure=is_prod,
             samesite="none" if is_prod else "lax",
-            max_age=token_data.get("expires_in", 1800),
+            max_age=60 * 60 * 24 * 7, # 7 days
         )
 
         return redir

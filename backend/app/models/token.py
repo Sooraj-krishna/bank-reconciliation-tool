@@ -21,5 +21,6 @@ class Token(Base):
     scope = Column(Text)
     token_type = Column(String)
     id_token = Column(Text)
+    tenant_id = Column(String, index=True) # The Xero Organisation ID
     created_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, nullable=False)

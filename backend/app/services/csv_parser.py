@@ -214,7 +214,18 @@ def _guess_columns(headers: list[str]) -> dict:
         if desc_col:
             break
 
-    return {"date": date_col, "amount": amount_col, "description": desc_col}
+    # Reference column aliases
+    ref_aliases = ["reference", "ref", "ref number", "invoice", "inv #"]
+    ref_col = None
+    for alias in ref_aliases:
+        for i, h in enumerate(headers_lower):
+            if alias == h or alias in h:
+                ref_col = headers[i]
+                break
+        if ref_col:
+            break
+
+    return {"date": date_col, "amount": amount_col, "description": desc_col, "reference": ref_col}
 
 
 def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str) -> dict:
@@ -263,6 +274,10 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
         raw_date = row.get(col_map["date"], "")
         raw_amount = row.get(col_map["amount"], "") if isinstance(col_map["amount"], str) else None
         raw_desc = row.get(col_map["description"], "")
+        raw_ref = row.get(col_map["reference"], "") if col_map.get("reference") else ""
+        
+        # Combine description and reference for better matching
+        full_desc = f"{raw_desc} {raw_ref}".strip() if raw_ref else raw_desc
 
         # Handle combined Debit/Credit columns
         if isinstance(col_map["amount"], tuple):
@@ -276,7 +291,7 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
 
         # Clean fields
         date_val = parse_date(raw_date)
-        desc_val = clean_description(raw_desc)
+        desc_val = clean_description(full_desc)
         amount_val = parse_amount(raw_amount) if raw_amount else None
 
         # Skip rows where date or amount parsing failed
@@ -288,7 +303,7 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
             "filename": filename,
             "session_id": session_id,
             "transaction_date": date_val,
-            "raw_description": raw_desc,
+            "raw_description": full_desc,  # Store the combined version for audit
             "description": desc_val,
             "amount": amount_val,
             "is_duplicate": False  # Will be set by detect_duplicates

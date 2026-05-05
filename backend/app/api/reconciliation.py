@@ -11,12 +11,15 @@ from app.models.bank_statement import BankStatement
 from app.services.xero_service import fetch_invoices
 from app.services.reconciliation_service import run_reconciliation
 
+from app.api.upload import get_current_tenant_id
+
 router = APIRouter()
 
 @router.get("/reconcile/{upload_id}")
 def reconcile_upload(
     upload_id: str,
     xero_session_id: str = Cookie(None),
+    tenant_id: str = Depends(get_current_tenant_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -29,10 +32,10 @@ def reconcile_upload(
     if not xero_session_id:
         raise HTTPException(status_code=401, detail="Xero session required.")
 
-    # 1. Fetch bank statements from DB
+    # 1. Fetch bank statements from DB (Scoped by tenant_id)
     bank_rows = db.query(BankStatement).filter(
         BankStatement.upload_id == upload_id,
-        BankStatement.session_id == xero_session_id
+        BankStatement.tenant_id == tenant_id
     ).all()
 
     if not bank_rows:
