@@ -23,10 +23,9 @@ export default function UploadTable({ rows, onClose }) {
     return sortDir === 'desc' ? -cmp : cmp;
   });
 
-  // Format amount as currency with 2 decimal places
+  // Format amount with 2 decimal places (removed currency symbol)
   const formatAmount = (amt) => {
-    const prefix = amt < 0 ? '-£' : '£';
-    return `${prefix}${Math.abs(amt).toFixed(2)}`;
+    return amt.toFixed(2);
   };
 
   return (

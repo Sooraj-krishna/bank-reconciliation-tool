@@ -135,9 +135,9 @@ export default function Dashboard() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard label="Total Invoices" value={safeInvoices.length} />
-          <StatCard label="Total Amount" value={`£${totalAmount.toLocaleString()}`} />
-          <StatCard label="Paid" value={paid.length} sub={`£${paid.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString()}`} />
-          <StatCard label="Awaiting Payment" value={authorised.length} sub={`£${authorised.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString()}`} />
+          <StatCard label="Total Amount" value={totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} />
+          <StatCard label="Paid" value={paid.length} sub={paid.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} />
+          <StatCard label="Awaiting Payment" value={authorised.length} sub={authorised.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} />
         </div>
 
         {/* Table Card */}
@@ -183,7 +183,7 @@ export default function Dashboard() {
                         {inv.DueDate ? new Date(inv.DueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "N/A"}
                       </td>
                       <td className="py-4 px-6 font-semibold text-[#1A1A1A]">
-                        {inv.CurrencyCode || "£"}{(inv.Total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {(inv.Total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-4 px-6"><StatusBadge status={inv.Status} /></td>
                     </tr>

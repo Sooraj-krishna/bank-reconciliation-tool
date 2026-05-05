@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import ALLOWED_ORIGINS
 from app.core.database import engine, Base
 from app.models import token
-from app.api import auth, invoices, upload
+from app.api import auth, invoices, upload, reconciliation
 
 # Create the FastAPI application instance — this is the ASGI entry point
 app = FastAPI()
@@ -30,7 +30,8 @@ app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
 
 # Mount the upload router under /api prefix for CSV upload endpoints
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
-
+# Mount the reconciliation router
+app.include_router(reconciliation.router, prefix="/api", tags=["Reconciliation"])
 # Attach CORS middleware so the React frontend (running on a different
 # origin/port) can make cross-origin requests to this API.
 # allow_origin_regex allows all vercel.app preview deployments dynamically.

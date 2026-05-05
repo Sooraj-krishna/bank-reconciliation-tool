@@ -11,6 +11,7 @@ import { AppProvider } from "./contexts/AppContext.jsx";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Upload from "./pages/Upload";
+import Reconcile from "./pages/Reconcile";
 
 /**
  * App - The top-level component that sets up routing and global providers.
@@ -28,6 +29,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/upload" element={<Upload />} />
+            <Route path="/reconcile/:uploadId" element={<Reconcile />} />
           </Routes>
         </Router>
       </AppProvider>

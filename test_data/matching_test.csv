@@ -1,0 +1,5 @@
+Date,Description,Amount
+2025-05-01,INV-001 Perfect Match,100.00
+2025-05-04,INV-002 Close Date Match,250.00
+2025-05-06,Fuzzy Amount Match,99.50
+2025-05-10,Completely Random Transaction,15.75

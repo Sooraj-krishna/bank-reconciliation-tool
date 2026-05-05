@@ -281,7 +281,17 @@ export default function Upload() {
               </div>
             </div>
 
-            <UploadTable rows={result.rows} onClose={() => setResult(null)} />
+            <div className="flex gap-3 mb-4">
+              <UploadTable rows={result.rows} onClose={() => setResult(null)} />
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => navigate(`/reconcile/${result.upload_id}`)}
+                className="bg-[#059669] text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-700 shadow-lg flex items-center gap-2 transition-all hover:scale-105"
+              >
+                🚀 Start Intelligent Matching
+              </button>
+            </div>
           </div>
         )}
 
@@ -349,6 +359,12 @@ export default function Upload() {
                         className="text-xs text-[#059669] hover:text-emerald-700 font-medium transition"
                       >
                         View
+                      </button>
+                      <button
+                        onClick={() => navigate(`/reconcile/${upload.upload_id}`)}
+                        className="text-xs text-[#059669] hover:text-emerald-700 font-bold transition"
+                      >
+                        Reconcile
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(upload.upload_id)}
