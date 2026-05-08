@@ -91,39 +91,73 @@ def calculate_score(bank_row: Dict[str, Any], invoice: Dict[str, Any]) -> int:
 def run_reconciliation(bank_rows: List[Dict[str, Any]], xero_invoices: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Main entry point for the matching engine.
-    Implements ambiguity detection and strict bucket sorting.
+    
+    Processing Flow:
+    1. Pre-maps Xero invoices for O(1) lookup.
+    2. Sorts bank rows by date for deterministic results.
+    3. Handles Manual Overrides (Matches confirmed by the user).
+    4. Filters out Rejected/Ignored invoices.
+    5. Calculates scores and sorts into Matched, Possible, and Unmatched buckets.
     """
     matched = []
     possible = []
     unmatched_bank = []
-    used_invoice_ids = set()
+    used_invoice_ids = set() # Track invoices already matched to prevent double-counting
+
+    # Pre-map invoices for fast lookup by ID
+    invoice_map = {inv.get("InvoiceID"): inv for inv in xero_invoices if inv.get("InvoiceID")}
     
-    # Sort bank rows by date for deterministic processing
+    # Sort bank rows by date for deterministic processing (oldest first)
     sorted_bank = sorted(bank_rows, key=lambda x: x["transaction_date"])
     
     for b_row in sorted_bank:
-        candidates = []
+        # STEP 1: Handle Manual Decisions from DB
+        # If the user already confirmed a match, we respect it immediately
+        status = b_row.get("reconciliation_status", "pending")
+        manual_id = b_row.get("reconciled_invoice_id")
         
+        # Parse ignored IDs from the pipe-separated string
+        ignored_ids = set((b_row.get("ignored_invoice_ids") or "").split("|"))
+
+        if status == "matched" and manual_id in invoice_map:
+            best_match = invoice_map[manual_id]
+            used_invoice_ids.add(manual_id)
+            matched.append({
+                "bank_transaction": b_row,
+                "xero_invoice": best_match,
+                "confidence": 100, # Manual match is always 100% confidence
+                "is_manual": True
+            })
+            continue
+
+        # STEP 2: Candidate Search
+        candidates = []
         for inv in xero_invoices:
             inv_id = inv.get("InvoiceID")
-            if inv_id in used_invoice_ids:
+            
+            # Skip if invoice is already taken OR specifically ignored for this row
+            if inv_id in used_invoice_ids or inv_id in ignored_ids:
                 continue
                 
             score = calculate_score(b_row, inv)
-            if score >= 60:
+            if score >= 60: # Threshold for 'Possible' bucket
                 candidates.append((score, inv))
         
+        # STEP 3: Bucket Assignment
         if not candidates:
             unmatched_bank.append(b_row)
             continue
             
-        # Sort candidates by score descending
+        # Best candidate is at index 0
         candidates.sort(key=lambda x: x[0], reverse=True)
         best_score, best_match = candidates[0]
         
-        # Ambiguity Handling: If multiple invoices have the SAME best score, it's a 'Possible' match
+        # Ambiguity Detection:
+        # If two invoices have the exact same best score, we cannot auto-match.
+        # We flag it as 'Ambiguous' and send it to the 'Possible' bucket.
         is_ambiguous = len(candidates) > 1 and candidates[1][0] == best_score
         
+        # 85 is the threshold for 'Auto-Matched'
         if best_score >= 85 and not is_ambiguous:
             used_invoice_ids.add(best_match["InvoiceID"])
             matched.append({
@@ -132,7 +166,7 @@ def run_reconciliation(bank_rows: List[Dict[str, Any]], xero_invoices: List[Dict
                 "confidence": best_score
             })
         else:
-            # Low score OR ambiguous match goes to 'Possible'
+            # Suggestions that are low score OR high score but conflicted (Ambiguous)
             possible.append({
                 "bank_transaction": b_row,
                 "xero_invoice": best_match,
@@ -140,6 +174,7 @@ def run_reconciliation(bank_rows: List[Dict[str, Any]], xero_invoices: List[Dict
                 "is_ambiguous": is_ambiguous
             })
 
+    # Find Xero invoices that weren't picked by any bank row
     unmatched_xero = [inv for inv in xero_invoices if inv.get("InvoiceID") not in used_invoice_ids]
 
     return {

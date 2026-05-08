@@ -281,7 +281,7 @@ export default function Upload() {
               </div>
             </div>
 
-            <div className="flex gap-3 mb-4">
+            <div className="mb-4">
               <UploadTable rows={result.rows} onClose={() => setResult(null)} />
             </div>
             <div className="flex justify-end">

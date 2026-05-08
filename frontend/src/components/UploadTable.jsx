@@ -16,9 +16,54 @@ import { useState } from "react";
  */
 export default function UploadTable({ rows, onClose }) {
   const [sortDir, setSortDir] = useState('desc');
+  
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+  const [amountRange, setAmountRange] = useState({ min: "", max: "" });
 
-  // Sort rows by date - default descending (newest first)
-  const sorted = [...rows].sort((a, b) => {
+  // Filtering Logic
+  const filtered = rows.filter(row => {
+    // 1. Text Search (Description, Raw Description, Amount)
+    const s = searchTerm.toLowerCase();
+    if (s && !(
+      row.description?.toLowerCase().includes(s) ||
+      row.raw_description?.toLowerCase().includes(s) ||
+      row.amount.toString().includes(s)
+    )) return false;
+
+    // 2. Date Range Clipping
+    if (dateRange.start && row.transaction_date < dateRange.start) return false;
+    if (dateRange.end && row.transaction_date > dateRange.end) return false;
+
+    // 3. Amount Magnitude Filter
+    const absAmt = Math.abs(row.amount);
+    if (amountRange.min && absAmt < parseFloat(amountRange.min)) return false;
+    if (amountRange.max && absAmt > parseFloat(amountRange.max)) return false;
+
+    return true;
+  });
+
+  // Sort rows by relevance (if searching) and then date
+  const sorted = [...filtered].sort((a, b) => {
+    // 1. Relevance Sorting (Priority: Exact > Starts With > Contains)
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      const descA = (a.description || "").toLowerCase();
+      const descB = (b.description || "").toLowerCase();
+      
+      const getPriority = (d) => {
+        if (d === s) return 2;
+        if (d.startsWith(s)) return 1;
+        return 0;
+      };
+      
+      const priA = getPriority(descA);
+      const priB = getPriority(descB);
+      if (priA !== priB) return priB - priA;
+    }
+
+    // 2. Standard Date Sort
     const cmp = a.transaction_date.localeCompare(b.transaction_date);
     return sortDir === 'desc' ? -cmp : cmp;
   });
@@ -29,18 +74,18 @@ export default function UploadTable({ rows, onClose }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="w-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       {/* Table header with row count and controls */}
       <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
         <div>
           <h2 className="font-semibold text-[#1A1A1A]">
-            Cleaned Transactions ({rows.length})
+            Cleaned Transactions ({sorted.length})
           </h2>
           <p className="text-xs text-[#64748B] mt-1">
             Sorted by date ({sortDir === 'desc' ? 'newest first' : 'oldest first'})
-            {rows.filter(r => r.is_duplicate).length > 0 && (
+            {filtered.filter(r => r.is_duplicate).length > 0 && (
               <span className="ml-2 text-amber-600">
-                • {rows.filter(r => r.is_duplicate).length} duplicate(s) flagged
+                • {filtered.filter(r => r.is_duplicate).length} duplicate(s) flagged
               </span>
             )}
           </p>
@@ -61,6 +106,71 @@ export default function UploadTable({ rows, onClose }) {
               className="text-xs text-[#64748B] hover:text-red-500 transition"
             >
               Close
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Internal Filter Bar */}
+      <div className="px-6 py-5 bg-gray-50/40 border-b border-gray-50 flex flex-wrap items-center gap-6">
+        {/* Search Box */}
+        <div className="flex-1 min-w-[240px] relative">
+          <svg className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <input 
+            type="text"
+            placeholder="Search description or amount..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all shadow-sm"
+          />
+        </div>
+
+        {/* Date Filter Box */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Dates</span>
+          <div className="flex items-center h-11 bg-white border border-gray-200 rounded-xl px-2 shadow-sm">
+            <input 
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              className="bg-transparent border-none h-full py-0 px-1 text-xs focus:ring-0"
+            />
+            <span className="text-gray-300 mx-1">→</span>
+            <input 
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              className="bg-transparent border-none h-full py-0 px-1 text-xs focus:ring-0"
+            />
+          </div>
+        </div>
+
+        {/* Amount Filter Box */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Amount</span>
+          <div className="flex items-center h-11 bg-white border border-gray-200 rounded-xl px-3 gap-2 shadow-sm">
+            <input 
+              type="number"
+              placeholder="Min"
+              value={amountRange.min}
+              onChange={(e) => setAmountRange(prev => ({ ...prev, min: e.target.value }))}
+              className="w-16 bg-transparent border-none p-0 text-xs focus:ring-0"
+            />
+            <span className="text-gray-300">-</span>
+            <input 
+              type="number"
+              placeholder="Max"
+              value={amountRange.max}
+              onChange={(e) => setAmountRange(prev => ({ ...prev, max: e.target.value }))}
+              className="w-16 bg-transparent border-none p-0 text-xs focus:ring-0"
+            />
+          </div>
+          {(searchTerm || dateRange.start || dateRange.end || amountRange.min || amountRange.max) && (
+            <button 
+              onClick={() => { setSearchTerm(""); setDateRange({ start: "", end: "" }); setAmountRange({ min: "", max: "" }); }}
+              className="text-xs text-red-500 hover:text-red-700 font-bold ml-2 transition-colors"
+            >
+              Clear
             </button>
           )}
         </div>

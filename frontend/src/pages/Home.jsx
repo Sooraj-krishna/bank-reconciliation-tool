@@ -17,7 +17,7 @@ const PlayIcon = () => (
 );
 
 const CheckIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
   </svg>
 );
@@ -248,11 +248,11 @@ export default function Home() {
             <h2 className="font-serif font-bold text-4xl text-center mb-16 text-[#1A1A1A]">Everything you need</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {features.map((f, i) => (
-                <Reveal key={i} delay={i * 80}>
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 hover:border-[#059669] hover:shadow-lg hover:-translate-y-1 transition-all duration-200">
+                <Reveal key={i} delay={i * 80} className="h-full">
+                  <div className="h-full bg-white border border-gray-200 rounded-xl p-6 hover:border-[#059669] hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col">
                     <div className="text-[#059669] mb-4">{f.icon}</div>
                     <h3 className="font-bold text-lg mb-2 text-[#1A1A1A]">{f.title}</h3>
-                    <p className="text-sm text-[#64748B]">{f.desc}</p>
+                    <p className="text-sm text-[#64748B] flex-1">{f.desc}</p>
                   </div>
                 </Reveal>
               ))}
@@ -294,18 +294,18 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-6">
             <h2 className="font-serif font-bold text-4xl text-center mb-4 text-[#1A1A1A]">Simple, transparent pricing</h2>
             <p className="text-center text-[#64748B] mb-16">14-day free trial. No credit card required. Cancel anytime.</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto items-stretch">
               {[
                 { name: 'Starter', price: '19', features: ['500 transactions/mo', '2 bank accounts', 'Email support', 'Basic reports'] },
                 { name: 'Professional', price: '49', popular: true, features: ['2,000 transactions/mo', '10 bank accounts', 'Priority support', 'Advanced matching', 'Export to PDF'] },
                 { name: 'Business', price: '99', features: ['Unlimited transactions', 'Unlimited accounts', 'Dedicated support', 'API access', 'Custom reports'] },
               ].map((p, i) => (
-                <Reveal key={i} delay={i * 100}>
-                  <div className={`bg-white rounded-xl p-8 border-2 ${p.popular ? 'border-[#059669] shadow-xl scale-105' : 'border-gray-200'} relative`}>
+                <Reveal key={i} delay={i * 100} className="h-full">
+                  <div className={`h-full bg-white rounded-xl p-8 border-2 ${p.popular ? 'border-[#059669] shadow-xl scale-105 z-10' : 'border-gray-200'} relative flex flex-col`}>
                     {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#059669] text-white text-xs font-bold px-3 py-1 rounded-full">MOST POPULAR</div>}
                     <h3 className="font-bold text-xl mb-2 text-[#1A1A1A]">{p.name}</h3>
                     <div className="mb-6"><span className="text-4xl font-bold text-[#1A1A1A]">${p.price}</span><span className="text-[#64748B]">/mo</span></div>
-                    <ul className="space-y-3 mb-8">
+                    <ul className="space-y-3 mb-8 flex-1">
                       {p.features.map((f, j) => <li key={j} className="flex items-center gap-2 text-sm text-[#1A1A1A]"><CheckIcon /> {f}</li>)}
                     </ul>
                     <button onClick={handleConnect} className={`w-full py-3 rounded-full font-medium transition ${p.popular ? 'bg-[#059669] text-white hover:bg-emerald-700' : 'border-2 border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white'}`}>

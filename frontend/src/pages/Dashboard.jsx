@@ -48,6 +48,12 @@ export default function Dashboard() {
   const [invoices, setInvoices] = useState([]);
   const [sortField, setSortField] = useState('Date');
   const [sortDir, setSortDir] = useState('desc');
+  
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -87,14 +93,69 @@ export default function Dashboard() {
     }
   };
 
-  // Safely get sorted invoices
-  const sorted = Array.isArray(invoices) ? [...invoices].sort((a, b) => {
+  // Safely compute stats and filter data
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
+
+  // Filter Logic
+  const filtered = safeInvoices.filter(inv => {
+    // 1. Status Filter
+    if (statusFilter !== "ALL" && inv.Status !== statusFilter) return false;
+
+    // 2. Search Term (Name, Invoice #, Reference)
+    const s = searchTerm.toLowerCase();
+    if (s && !(
+      inv.Contact?.Name?.toLowerCase().includes(s) ||
+      inv.InvoiceNumber?.toLowerCase().includes(s) ||
+      inv.Reference?.toLowerCase().includes(s) ||
+      inv.Total?.toString().includes(s)
+    )) return false;
+
+    // 3. Date Range
+    const dStr = inv.Date || inv.DateString;
+    if (dateRange.start || dateRange.end) {
+      let invDate;
+      if (dStr && dStr.includes("/Date(")) {
+        const ms = parseInt(dStr.match(/\d+/)[0]);
+        invDate = new Date(ms);
+      } else {
+        invDate = new Date(dStr);
+      }
+      
+      if (dateRange.start && invDate < new Date(dateRange.start)) return false;
+      if (dateRange.end && invDate > new Date(dateRange.end)) return false;
+    }
+
+    return true;
+  });
+
+  // Sort Logic
+  const sorted = [...filtered].sort((a, b) => {
+    // 1. If searching, prioritize relevance (Exact > Starts With > Contains)
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      const nameA = (a.Contact?.Name || "").toLowerCase();
+      const nameB = (b.Contact?.Name || "").toLowerCase();
+      const invA = (a.InvoiceNumber || "").toLowerCase();
+      const invB = (b.InvoiceNumber || "").toLowerCase();
+
+      // Helper to check for exact or prefix matches
+      const getPriority = (name, inv) => {
+        if (name === s || inv === s) return 2; // Exact match
+        if (name.startsWith(s) || inv.startsWith(s)) return 1; // Starts with
+        return 0; // Substring match
+      };
+
+      const priA = getPriority(nameA, invA);
+      const priB = getPriority(nameB, invB);
+
+      if (priA !== priB) return priB - priA; // Higher priority moves up
+    }
+
+    // 2. Secondary Sort: Use selected field (Date/Amount)
     const field = sortField === 'Amount' ? (a.Total ?? 0) - (b.Total ?? 0) : new Date(a[sortField]) - new Date(b[sortField]);
     return sortDir === 'asc' ? field : -field;
-  }) : [];
+  });
 
-  // Safely compute stats
-  const safeInvoices = Array.isArray(invoices) ? invoices : [];
   const totalAmount = safeInvoices.reduce((sum, inv) => sum + (inv.Total ?? 0), 0);
   const paid = safeInvoices.filter(i => i.Status === 'PAID');
   const authorised = safeInvoices.filter(i => i.Status === 'AUTHORISED');
@@ -154,10 +215,66 @@ export default function Dashboard() {
           <StatCard label="Awaiting Payment" value={authorised.length} sub={authorised.reduce((s, i) => s + (i.Total ?? 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} />
         </div>
 
+        {/* Filters */}
+        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-8 shadow-sm flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[240px] relative">
+            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <input 
+              type="text"
+              placeholder="Search contact, reference or amount..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#64748B] uppercase">Status</span>
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+            >
+              <option value="ALL">All Status</option>
+              <option value="PAID">Paid</option>
+              <option value="AUTHORISED">Awaiting Payment</option>
+              <option value="DRAFT">Draft</option>
+              <option value="VOIDED">Voided</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[#64748B] uppercase">Dates</span>
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-2">
+              <input 
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                className="bg-transparent border-none py-2 px-1 text-xs focus:ring-0"
+              />
+              <span className="text-gray-300">→</span>
+              <input 
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                className="bg-transparent border-none py-2 px-1 text-xs focus:ring-0"
+              />
+            </div>
+            {(dateRange.start || dateRange.end || searchTerm || statusFilter !== "ALL") && (
+              <button 
+                onClick={() => { setSearchTerm(""); setStatusFilter("ALL"); setDateRange({ start: "", end: "" }); }}
+                className="text-xs text-red-500 hover:text-red-700 font-bold ml-2 transition"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Table Card */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="font-semibold text-[#1A1A1A]">All Invoices ({safeInvoices.length})</h2>
+            <h2 className="font-semibold text-[#1A1A1A]">Invoices ({sorted.length})</h2>
             <div className="text-sm text-[#64748B]">
               Sorted by {sortField} ({sortDir})
             </div>
@@ -169,6 +286,19 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <p className="text-[#64748B]">No invoices found in your Xero organisation.</p>
+            </div>
+          ) : sorted.length === 0 ? (
+            <div className="text-center py-16">
+              <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <p className="text-[#64748B]">No invoices match your current filters.</p>
+              <button 
+                onClick={() => { setSearchTerm(""); setStatusFilter("ALL"); setDateRange({ start: "", end: "" }); }}
+                className="text-emerald-600 font-bold mt-2 hover:underline"
+              >
+                Clear all filters
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">

@@ -39,3 +39,17 @@ class BankStatement(Base):
     raw_description = Column(Text)
     amount = Column(Float, nullable=False)
     is_duplicate = Column(Boolean, default=False)
+
+    # --- Reconciliation State ---
+    # Stores the Xero InvoiceID if a match is confirmed (either auto-matched or manual).
+    reconciled_invoice_id = Column(String, nullable=True) 
+
+    # Current state: 'pending' (new), 'matched' (reconciled), 'ignored' (placeholder).
+    reconciliation_status = Column(String, default="pending") 
+
+    # A pipe-separated string of InvoiceIDs that the user has explicitly rejected.
+    # This prevents the engine from suggesting these invoices for this bank row again.
+    ignored_invoice_ids = Column(Text, default="") 
+
+    # Audit timestamp of when the reconciliation was finalized.
+    reconciled_at = Column(DateTime, nullable=True)
