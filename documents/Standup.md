@@ -123,12 +123,70 @@
 
 - **Strict Tenant Isolation**: Enforced hard-scoping of all database transactions by the `tenant_id`, ensuring zero data leakage between different Xero organizations.
 - **One-to-One Matching Registry**: Built a stateful used-invoice registry to ensure that no single Xero invoice is ever matched against more than one bank transaction in a single run.
-- **Deterministic Processing**: Enforced strict pre-matching sorting (Date -> Amount -> ID) to guarantee that the reconciliation engine produces identical results every time it runs on the same data.
+- **Deterministic Processing Order**: Enforced strict pre-matching sorting (Date -> Amount -> ID) to guarantee that the reconciliation engine produces identical results every time it runs on the same data.
 
 ### 🏗️ Architectural Highlights
 
 - **Multi-Pass Scoring Strategy**: The engine runs in three distinct passes—Deterministic (Exact), Heuristic (Fuzzy), and Contextual (Contact Match)—to build a high-precision confidence score.
 - **Universal Normalization Layer**: The frontend uses a unified normalization layer, allowing the same search, sort, and display logic to work seamlessly across all four buckets.
 - **Stateful SQL Persistence**: Switched from transient session storage to a persistent SQLite backend linked to the user's Xero identity, allowing for "resume-anywhere" reconciliation.
+
+---
+
+---
+
+## Day 6-7: Finalizing the Matching Engine (Part 3) — ✅ DONE
+
+### ✅ Accomplishments
+- **Multi-Pass Confidence Scoring Matrix**: Engineered a high-precision scoring engine that evaluates potential matches across three logical passes:
+  - **Deterministic Pass (100%)**: Utilizes exact amount matching, exact date alignment, and alphanumeric reference stripping for near-perfect certainty.
+  - **Heuristic Pass (85%)**: Accounts for "date slippage" (transaction clearing delays) by allowing a 3-day window while maintaining exact amount constraints.
+  - **Fuzzy/Contextual Pass (60-84%)**: Employs an amount tolerance (±1% for hidden fees) and a 5-day window, boosted by partial-string contact name matching.
+- **Stateful Invoice Registry ("Match Locking")**: Built a transient registry during the matching run that tracks every Xero Invoice ID used. Once an invoice is paired, it is "locked," preventing the engine from creating invalid one-to-many or many-to-one reconciliation errors.
+- **Ambiguity Resolver**: Developed a "Clash Detection" layer. If a bank transaction has multiple candidates with identical confidence scores, the engine refuses to auto-match and instead routes the cluster to the "Possible" bucket with a "Review Required" flag.
+- **Deep-Logic Unit Testing**: Implemented a PyTest suite in `matching_engine.py` simulating complex financial edge cases:
+  - **The "Fee Gap"**: Bank charges causing small amount mismatches.
+  - **The "Weekend Slide"**: Transactions occurring on Friday but clearing on Monday.
+  - **The "Duplicate Amount"**: Multiple different invoices for the same amount ($100.00) but different references.
+
+### 🚩 Challenges & Solutions
+- **Reference Noise**: Bank references often contain auxiliary info (e.g., "PAYMENT 1234 REF: ABCD").
+  - _Solution_: Built a **Normalization Pipeline** that strips non-critical noise and isolates the core reference ID for comparison against Xero invoice numbers.
+- **Xero organisation-ID Scoping**: Matching data could leak if tokens from multiple companies were used.
+  - _Solution_: Enforced a strict `organisation_id` FK constraint on all reconciliation results, ensuring data is cryptographically isolated at the database level.
+
+### 🏗️ Architectural Highlights
+- **Configurable Weighting Matrix**: Moved scoring weights (Amount: 0.7, Date: 0.2, Metadata: 0.1) into a central config, allowing the engine to be tuned for different industries without code changes.
+- **Pure Function Matching**: The engine is designed as a side-effect-free service. It receives data, computes matches, and returns a result set, making it highly predictable and easy to debug.
+
+---
+
+## Day 8-10: Review UI & Modernization (Part 4) — ✅ DONE
+
+### ✅ Accomplishments
+- **Interactive Quad-Bucket State Registry**: Successfully engineered a robust React-managed workspace featuring four distinct transaction buckets. Leveraged the **Normalize-Extract Pattern** to flatten disparate data shapes into a unified interface for the 4-tab system.
+- **Dynamic Reconciliation Pipeline**:
+  - **Instant Row Transfers**: Implemented high-performance state management that moves items between buckets (e.g., Approve Possible -> Matched) without full-page reloads or layout shifts.
+  - **Manual Link Engine**: Designed a side-by-side reconciliation modal that allows users to manually pair "Unmatched Bank" items with searchable "Unmatched Xero" records.
+- **High-Fidelity Feature Visualization**:
+  - **SVG Orbital Timeline**: Built a custom SVG-based radial features timeline with CSS-variable-driven animations and synchronized hover-state orchestration.
+  - **3D CardStack Framework**: Integrated a `framer-motion` 3D stack for testimonials, featuring opaque emerald gradients, high-contrast typography, and gold 5-star ratings.
+- **Dashboard Full-Screen Migration**: Refactored the core reconciliation view from a side-constrained layout to a full-screen, high-density dashboard, significantly reducing scrolling and improving information visibility.
+
+### 🚩 Challenges & Solutions
+- **3D Content Overflow**: The addition of stars, tags, and profile icons exceeded the `260px` height of the testimonial cards.
+  - _Solution_: Recalibrated the `cardHeight` to `320px` and the stage height to `cardHeight + 60` to accommodate the rich metadata without clipping.
+- **Accessibility in 3D Space**: 3D transforms can often break tab indexing and keyboard navigation.
+  - _Solution_: Manually implemented `onKeyDown` handlers for the CardStack (`ArrowLeft`, `ArrowRight`) and ensured all interactive orbital nodes are keyboard-focusable.
+- **Theme Contrast Audit**: The shift to a light-themed landing page revealed readability issues in the feature cards.
+  - _Solution_: Refactored the `RadialOrbitalTimeline` to use `font-black` weights and Slate-800 text on pure white backgrounds, ensuring high legibility for financial data.
+
+### 🔒 Security & Best Practices
+- **Optimistic UI Updates with Rollback**: Implemented optimistic state updates for matching actions. The UI updates instantly, but if the backend call fails, the state is gracefully rolled back to its previous bucket.
+- **Component Atomic Design**: Standardized all UI elements into a library of atomic components (`Card`, `Badge`, `Button`), ensuring that theme updates propagate instantly across the entire application.
+
+### 🏗️ Architectural Highlights
+- **Universal Filter Interface**: Developed a shared filtering hook that applies Date and Amount range logic across all four buckets simultaneously, ensuring consistent results as users switch tabs.
+- **Framer Motion Orchestration**: Used a centralized `motion` configuration to sync the entry animations of the feature orbital nodes, creating a polished, premium sequence on page load.
 
 ---

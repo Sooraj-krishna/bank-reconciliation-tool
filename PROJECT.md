@@ -29,7 +29,7 @@ A web application that helps small business owners reconcile bank statements wit
 
 ## 2-Week Plan
 
-### Part 1: Project Setup + Xero Connection (Days 1-2)
+### Part 1: Project Setup + Xero Connection (Days 1-2) — ✅ COMPLETED
 **Backend:**
 - FastAPI app with OAuth flow (`/auth/login`, `/auth/callback`)
 - Store tokens in SQLite (safe storage, no hardcoded secrets)
@@ -48,7 +48,7 @@ A web application that helps small business owners reconcile bank statements wit
 
 ---
 
-### Part 2: CSV Upload and Cleaning (Days 3-4)
+### Part 2: CSV Upload and Cleaning (Days 3-4) — ✅ COMPLETED
 **Features:**
 - Upload bank statement CSV via React UI
 - Send file to FastAPI backend for processing
@@ -71,7 +71,7 @@ A web application that helps small business owners reconcile bank statements wit
 
 ---
 
-### Part 3: Matching Engine (Days 5-7)
+### Part 3: Matching Engine (Days 5-7) — ✅ COMPLETED
 **Core logic — 4 buckets:**
 1. **Matched** — High confidence (exact amount, close date, matching reference)
 2. **Possible matches** — Some doubt (amount ±1%, date within 5 days, supplier name match)
@@ -96,7 +96,7 @@ A web application that helps small business owners reconcile bank statements wit
 
 ---
 
-### Part 4: Review UI (Days 8-10)
+### Part 4: Review UI (Days 8-10) — ✅ COMPLETED
 **Features:**
 - 4 tables/tabs for the 4 buckets
 - Summary: "12 matched, 3 to review, 5 unmatched"
