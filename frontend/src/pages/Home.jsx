@@ -2,8 +2,21 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ErrorAlert from "../components/ErrorAlert";
 import { useAppContext } from "../hooks/useAppContext";
+import RadialOrbitalTimeline from "../components/ui/radial-orbital-timeline";
+import { 
+  Sparkles, 
+  CheckCircle2, 
+  History, 
+  CreditCard, 
+  ShieldCheck, 
+  FileDown, 
+  Zap,
+  Calendar,
+  Code
+} from "lucide-react";
 
 const XeroIcon = () => (
+// ... (rest of the file until the features section)
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
     <circle cx="12" cy="12" r="12" fill="#059669"/>
     <text x="12" y="16" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">X</text>
@@ -13,18 +26,6 @@ const XeroIcon = () => (
 const PlayIcon = () => (
   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" />
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-  </svg>
-);
-
-const SparkleIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
   </svg>
 );
 
@@ -91,20 +92,80 @@ export default function Home() {
     { id: 'unmatched-xero', label: 'Unmatched (Xero)', count: 3, desc: 'Missing from bank?', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100 text-purple-800' },
   ];
 
-  const features = [
-    { icon: <SparkleIcon />, title: 'Smart Matching', desc: 'Fuzzy logic pairs transactions even with slight description mismatches.' },
-    { icon: <CheckIcon />, title: 'Bulk Actions', desc: 'Approve 50 matches with one click.' },
-    { icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, title: 'Audit Trail', desc: 'Every decision logged. Your accountant will thank you.' },
-    { icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>, title: 'Multi-Bank Support', desc: 'Works with any bank CSV export.' },
-    { icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>, title: 'Secure by Design', desc: 'OAuth 2.0. No credentials stored. SOC 2 compliant.' },
-    { icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>, title: 'Export Reports', desc: 'PDF reconciliation summaries for your records.' },
+  const orbitalFeatures = [
+    {
+      id: 1,
+      title: 'Smart Matching',
+      date: 'Core AI',
+      content: 'Fuzzy logic pairs transactions even with slight description mismatches, learning from your manual approvals over time.',
+      category: 'AI',
+      icon: Sparkles,
+      relatedIds: [2, 3],
+      status: 'completed',
+      energy: 100,
+    },
+    {
+      id: 2,
+      title: 'Bulk Actions',
+      date: 'Efficiency',
+      content: 'Approve up to 50 matches with a single click. Our high-confidence engine ensures accuracy while saving you hours.',
+      category: 'Workflow',
+      icon: CheckCircle2,
+      relatedIds: [1, 6],
+      status: 'completed',
+      energy: 95,
+    },
+    {
+      id: 3,
+      title: 'Audit Trail',
+      date: 'Compliance',
+      content: 'Every decision is logged with timestamps and metadata. Your accountant will have a full history of every reconciliation.',
+      category: 'Trust',
+      icon: History,
+      relatedIds: [1, 5],
+      status: 'completed',
+      energy: 88,
+    },
+    {
+      id: 4,
+      title: 'Multi-Bank Support',
+      date: 'Universal',
+      content: 'Works with any bank CSV export. We automatically clean and normalize data from thousands of financial institutions.',
+      category: 'Data',
+      icon: CreditCard,
+      relatedIds: [2, 6],
+      status: 'completed',
+      energy: 92,
+    },
+    {
+      id: 5,
+      title: 'Secure by Design',
+      date: 'Security',
+      content: 'OAuth 2.0 secure connection to Xero. We never store your credentials. SOC 2 compliant data handling.',
+      category: 'Security',
+      icon: ShieldCheck,
+      relatedIds: [3, 4],
+      status: 'completed',
+      energy: 100,
+    },
+    {
+      id: 6,
+      title: 'Export Reports',
+      date: 'Reporting',
+      content: 'Generate PDF or Excel reconciliation summaries for your records. Perfect for month-end closing and tax preparation.',
+      category: 'Output',
+      icon: FileDown,
+      relatedIds: [2, 4],
+      status: 'completed',
+      energy: 85,
+    },
   ];
 
   const steps = [
     { icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" /><path strokeLinecap="round" strokeLinejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>, title: 'Connect', desc: 'One-click secure connection to your Xero organization.' },
     { icon: <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>, title: 'Upload', desc: 'Drop your bank statement. We handle CSV, OFX, and QIF.' },
-    { icon: <SparkleIcon />, title: 'Match', desc: 'Our engine auto-matches 85%+ of transactions in seconds.' },
-    { icon: <CheckIcon />, title: 'Review', desc: 'Approve matches in four clean buckets. Download your report. Done.' },
+    { icon: <Sparkles className="w-8 h-8" />, title: 'Match', desc: 'Our engine auto-matches 85%+ of transactions in seconds.' },
+    { icon: <CheckCircle2 className="w-8 h-8" />, title: 'Review', desc: 'Approve matches in four clean buckets. Download your report. Done.' },
   ];
 
   const testimonials = [
@@ -243,19 +304,13 @@ export default function Home() {
 
       {/* Features */}
       <Reveal>
-        <section id="features" className="py-24 bg-[#F8FAFC]">
-          <div className="max-w-7xl mx-auto px-6">
-            <h2 className="font-serif font-bold text-4xl text-center mb-16 text-[#1A1A1A]">Everything you need</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {features.map((f, i) => (
-                <Reveal key={i} delay={i * 80} className="h-full">
-                  <div className="h-full bg-white border border-gray-200 rounded-xl p-6 hover:border-[#059669] hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col">
-                    <div className="text-[#059669] mb-4">{f.icon}</div>
-                    <h3 className="font-bold text-lg mb-2 text-[#1A1A1A]">{f.title}</h3>
-                    <p className="text-sm text-[#64748B] flex-1">{f.desc}</p>
-                  </div>
-                </Reveal>
-              ))}
+        <section id="features" className="py-24 bg-white text-[#1A1A1A]">
+          <div className="max-w-7xl mx-auto px-6 text-center">
+            <h2 className="font-serif font-bold text-4xl mb-4 text-[#1A1A1A]">Everything you need</h2>
+            <p className="text-[#64748B] max-w-2xl mx-auto mb-16">Explore the core engines powering your financial automation through our interactive orbital system.</p>
+            
+            <div className="relative">
+              <RadialOrbitalTimeline timelineData={orbitalFeatures} />
             </div>
           </div>
         </section>
@@ -306,7 +361,7 @@ export default function Home() {
                     <h3 className="font-bold text-xl mb-2 text-[#1A1A1A]">{p.name}</h3>
                     <div className="mb-6"><span className="text-4xl font-bold text-[#1A1A1A]">${p.price}</span><span className="text-[#64748B]">/mo</span></div>
                     <ul className="space-y-3 mb-8 flex-1">
-                      {p.features.map((f, j) => <li key={j} className="flex items-center gap-2 text-sm text-[#1A1A1A]"><CheckIcon /> {f}</li>)}
+                      {p.features.map((f, j) => <li key={j} className="flex items-center gap-2 text-sm text-[#1A1A1A]"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> {f}</li>)}
                     </ul>
                     <button onClick={handleConnect} className={`w-full py-3 rounded-full font-medium transition ${p.popular ? 'bg-[#059669] text-white hover:bg-emerald-700' : 'border-2 border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white'}`}>
                       Start Free Trial
