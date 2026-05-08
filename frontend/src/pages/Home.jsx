@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ErrorAlert from "../components/ErrorAlert";
 import { useAppContext } from "../hooks/useAppContext";
 import RadialOrbitalTimeline from "../components/ui/radial-orbital-timeline";
+import { CardStack } from "../components/ui/card-stack";
 import { 
   Sparkles, 
   CheckCircle2, 
@@ -168,10 +169,37 @@ export default function Home() {
     { icon: <CheckCircle2 className="w-8 h-8" />, title: 'Review', desc: 'Approve matches in four clean buckets. Download your report. Done.' },
   ];
 
-  const testimonials = [
-    { quote: "What used to take me a full Friday afternoon now takes 20 minutes. I actually reconciled during my coffee break.", name: "Sarah K.", role: "Freelance Designer", initial: "S" },
-    { quote: "We cut our bookkeeper's reconciliation time by 80%. The ROI was obvious in week one.", name: "James T.", role: "E-commerce Owner", initial: "J" },
-    { quote: "The 'Possible Matches' bucket is genius. It catches the edge cases without making me hunt for them.", name: "Priya M.", role: "Virtual Bookkeeper", initial: "P" },
+  const testimonialItems = [
+    {
+      id: 1,
+      title: "Sarah K.",
+      description: "What used to take me a full Friday afternoon now takes 20 minutes. I actually reconciled during my coffee break.",
+      tag: "Freelance Designer",
+    },
+    {
+      id: 2,
+      title: "James T.",
+      description: "We cut our bookkeeper's reconciliation time by 80%. The ROI was obvious in week one. Scarily accurate matching.",
+      tag: "E-commerce Owner",
+    },
+    {
+      id: 3,
+      title: "Priya M.",
+      description: "The 'Possible Matches' bucket is genius. It catches the edge cases without making me hunt for them.",
+      tag: "Virtual Bookkeeper",
+    },
+    {
+      id: 4,
+      title: "Mark R.",
+      description: "Seamless Xero integration. The audit trail is a lifesaver for our tax filings and compliance audits.",
+      tag: "SaaS Founder",
+    },
+    {
+      id: 5,
+      title: "Elena G.",
+      description: "Best reconciliation tool I've used. Simple, fast, and secure. It just works exactly as promised.",
+      tag: "Agency Director",
+    },
   ];
 
   return (
@@ -318,26 +346,22 @@ export default function Home() {
 
       {/* Testimonials */}
       <Reveal>
-        <section className="py-24 bg-[#1A1A1A]">
+        <section className="py-24 bg-white">
           <div className="max-w-7xl mx-auto px-6">
-            <h2 className="font-serif font-bold text-4xl text-white text-center mb-16">Loved by business owners</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {testimonials.map((t, i) => (
-                <Reveal key={i} delay={i * 100}>
-                  <div className="bg-white/5 rounded-xl p-8 border border-white/10">
-                    <p className="text-white/90 italic mb-6 leading-relaxed">"{t.quote}"</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#059669] flex items-center justify-center text-white font-bold">
-                        {t.initial}
-                      </div>
-                      <div>
-                        <p className="text-white font-medium text-sm">{t.name}</p>
-                        <p className="text-white/60 text-xs">{t.role}</p>
-                      </div>
-                    </div>
-                  </div>
-                </Reveal>
-              ))}
+            <div className="text-center mb-10">
+              <h2 className="font-serif font-bold text-4xl text-[#1A1A1A] mb-4">Loved by business owners</h2>
+              <p className="text-[#64748B] max-w-2xl mx-auto">See how thousands of founders and finance teams are reclaiming their Fridays.</p>
+            </div>
+            
+            <div className="max-w-xl mx-auto">
+              <CardStack
+                items={testimonialItems}
+                autoAdvance
+                intervalMs={3500}
+                cardWidth={400}
+                cardHeight={320}
+                depthPx={80}
+              />
             </div>
           </div>
         </section>
