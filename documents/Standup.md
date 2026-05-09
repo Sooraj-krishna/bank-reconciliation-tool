@@ -61,6 +61,20 @@
 
 ### 🏗️ Architectural Highlights
 
+### ✅ Day 12: Reporting Engine, Data-Rich Dashboard & Final Polish
+**Yesterday:**
+- Implemented core Excel reporting service and backend download endpoints.
+- Drafted initial project documentation.
+
+**Today:**
+- **Premium Reporting Engine**: Overhauled the Excel export with `Pandas` and `OpenPyXL`, adding professional styling (emerald theme, zebra striping) and dedicated sheets for Matched, Possible, Unmatched, and Audit Trail data.
+- **Financial Metrics**: Integrated real-time "Total Amount" calculations into the summary cards, navigation tabs, and a dynamic "Aggregate Total" footer for enhanced financial visibility.
+- **UI/UX Refinement**: Slimmed down the Search Bar and Sort Filter for a more balanced layout. Improved card density and interactive states across the reconciliation workspace.
+- **Final Documentation**: Updated `README.md`, `PROJECT.md`, and created `AI_USAGE.md` to provide a comprehensive project overview and technical reflection.
+
+**Blockers:**
+- None. Project is ready for production deployment and final walkthrough.
+
 - **Layered Service Pattern**: Separated Xero API logic into a dedicated service layer, making the codebase easier to test and scale.
 
 - **Transparent Auto-Refresh**: The backend automatically detects and fixes expired tokens _before_ the API call is made, providing a "it just works" experience for the user.
@@ -188,5 +202,35 @@
 ### 🏗️ Architectural Highlights
 - **Universal Filter Interface**: Developed a shared filtering hook that applies Date and Amount range logic across all four buckets simultaneously, ensuring consistent results as users switch tabs.
 - **Framer Motion Orchestration**: Used a centralized `motion` configuration to sync the entry animations of the feature orbital nodes, creating a polished, premium sequence on page load.
+
+---
+
+## Day 11-12: Reporting Engine & Final Polish (Part 5) — ✅ DONE
+
+### ✅ Accomplishments
+- **Premium Reporting Engine (Excel)**: Developed a professional, multi-sheet export service using `Pandas` and `OpenPyXL`.
+  - **Dynamic Metrics**: Summary sheet calculates aggregate dollar values for Matched, Possible, and Unmatched items.
+  - **Verified Audit Trail**: Explicitly captures manual approval timestamps and linked invoice metadata.
+  - **Thematic Styling**: Integrated emerald-branded headers, zebra-striping, and auto-adjusted layouts.
+- **Financial Dashboard Expansion (Triple-Layer Aggregation)**:
+  - **Layer 1: Global Summary Cards**: Engineered a high-density metrics grid that displays aggregate dollar values alongside transaction counts for Matched, Possible, and Unmatched buckets.
+  - **Layer 2: Navigational Amount Badges**: Integrated live currency badges directly into the bucket tabs (Matched, Possible, Unmatched Bank, Unmatched Xero), providing instant fiscal context before tab switching.
+  - **Layer 3: Dynamic Bucket Summary Footer**: Developed a real-time "Aggregate Total" component at the base of the transaction list that dynamically re-sums absolute values as users apply search terms, date ranges, or amount filters.
+- **UI/UX Optimization (Precision Controls)**:
+  - **Compact Header Orchestration**: Reduced the Search Bar footprint and sort filter dimensions to prioritize the transaction workspace while maintaining accessibility.
+  - **High-Contrast Currency Formatting**: Standardized the display of financial values using absolute magnitude in summaries to prevent debit/credit polarity confusion, while preserving original signs in detail views.
+- **Comprehensive Documentation Suite**:
+  - **README.md Rewrite**: Added detailed setup guides, architectural assumptions, and a Mermaid data flow diagram.
+  - **AI_USAGE.md**: Drafted a technical reflection on AI-pair-programming trade-offs and custom logic overrides.
+
+### 🚩 Challenges & Solutions
+- **Aggregation Latency & State Sync**: Summing thousands of rows in the frontend for real-time totals can cause UI jitter and race conditions during tab switching.
+  - _Solution_: Leveraged `useMemo` for the calculation logic and synced the backend `reconciliation_service.py` summary object with the frontend state to ensure single-source-of-truth accuracy.
+- **Excel Styling Complexity**: Formatting cell-level borders and colors in `openpyxl` is verbose.
+  - _Solution_: Abstracted styling into a reusable utility loop within `report_service.py` to maintain visual consistency across all sheets.
+
+### 🏗️ Architectural Highlights
+- **Service-Side Computation**: Moved complex summary math into `reconciliation_service.py` to ensure the same logic is shared between the UI and the Excel export.
+- **Binary Stream Pipeline**: Implemented a robust `StreamingResponse` flow from FastAPI to React, handling large binary blobs with native browser download triggers.
 
 ---

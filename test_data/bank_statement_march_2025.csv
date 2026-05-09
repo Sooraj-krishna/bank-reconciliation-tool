@@ -1,0 +1,18 @@
+Date,Description,Amount,Reference
+01/03/2025,ACME OFFICE SUPPLIES,-250.00,REF-001
+03/03/2025,Consulting Services - Tech Partners ltd,-1500.00,INV-2025-0341
+05-03-2025,Salary March 2025,-5000.00,SAL-MAR-25
+07/03/2025,  CLIENT PAYMENT - GLOBEX CORP  ,€12500.00,INV-1023
+10/03/2025,INTERNET BILL,-89.99,REF-002
+12/03/2025,Refund - office supplies,50.00,REF-001-RFD
+15-03-2025,ACME Office Supplies,-€250.00,REF-001
+
+17/03/2025,BANK FEE,-25.00,FEE-MAR
+19/03/2025,Marketing - Social Media Co.,-750.50,INV-2025-1102
+20/03/2025,Customer payment Initech LLC,3200.00,
+22-03-2025,Office Rent March,-2000.00,RENT-MAR-25
+25/03/2025,Hardware purchase - DELL,-1899.00,INV-DELL-4421
+27/03/2025,REIMBURSEMENT - travel expenses,350.00,EXP-RFD-92
+28/03/2025,Globex Corp Payment for Invoice 1023,12500.00,INV-1023
+30/03/2025,Subscription - SaaS Tools,-49.99,SUB-MAR
+31/03/2025,Client payment from Acme Industries,4500.00,INV-1024

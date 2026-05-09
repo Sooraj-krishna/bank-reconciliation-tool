@@ -32,12 +32,22 @@ This document details how AI (Antigravity) was utilized during the development o
 
 ---
 
-## 🛠️ Feature 4: Reporting & Export
-*   **What I asked AI:** "Generate a reconciliation report in Excel using Pandas."
-*   **What I used:** The multi-sheet structure (Summary, Matched, Unmatched, Audit).
-*   **What I modified/rejected:**
-    *   *Modified*: Added an **Audit Trail** sheet specifically tracking manual approvals.
-*   **Reasoning:** Financial tools require traceability. Simply listing matches isn't enough; we need to know *when* and *which* transactions were manually linked by the user.
+## 🛠️ Feature 4: Reporting & Premium Export
+*   **What I asked AI**: "Generate a reconciliation report in Excel using Pandas with emerald branding."
+*   **What I used**: The multi-sheet structure and basic `openpyxl` border styling.
+*   **What I modified/rejected**:
+    *   *Modified*: Implemented a **Strict Audit Tab** that specifically isolated manual actions from auto-matches.
+    *   *Modified*: Added **Financial Section Headers** and conditional styling for empty states.
+*   **Reasoning**: A generic list of matches isn't an audit trail. I forced the inclusion of `reconciled_at` timestamps and a "No items found" safety layer to ensure the export feels like a finished product, not a debug log.
+
+---
+
+## 🛠️ Feature 5: Real-Time Financial Aggregation
+*   **What I asked AI**: "Show total amounts for each bucket on the dashboard."
+*   **What I used**: The `useMemo` based filtering logic to keep calculations fast.
+*   **What I modified/rejected**:
+    *   *Modified*: Enforced **Absolute Value Aggregation** for bank transactions.
+*   **Reasoning**: Bank statements often use negative numbers for debits. Showing a negative "Total Matched" value is confusing for users. I standardized the summary stats to show absolute magnitude while preserving the original polarity in the detail lists.
 
 ---
 

@@ -1,11 +1,14 @@
 """
 Upload API Router
------------------
-Handles the ingestion of bank statement CSV files.
-- Validates file types and contents
-- Integrates with the CSV parser service
-- Manages DB persistence for bank rows
-- Provides CRUD operations for managing past uploads
+
+Handles CSV file uploads for bank statements.
+- POST /api/upload → upload and parse CSV (no auth required)
+- GET  /api/uploads → list past uploads for session
+- GET  /api/upload/{upload_id} → get rows from a specific upload
+- DELETE /api/upload/{upload_id} → delete an upload
+
+POST /upload does not require authentication - anyone can upload a bank statement.
+GET/DELETE endpoints use session_id to scope uploads to a session.
 """
 
 import uuid
@@ -15,127 +18,140 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db, SessionLocal
 from app.services.csv_parser import parse_csv
 from app.models.bank_statement import BankStatement
-from app.services.token_store import get_tokens
 
-# Initialize the router for the upload namespace
-router = APIRouter()
 
 def sanitize_filename(filename: str) -> str:
     """
-    Sanitize filename to prevent security risks like path traversal.
+    Sanitize filename to prevent SQL injection and path traversal attacks.
+
+    - Removes path components (../, /etc.)
+    - Removes NULL bytes
+    - Limits length to 255 chars
+    - Allows only safe characters (alphanumeric, dots, hyphens, underscores)
     """
-    # 1. Strip path components: Convert "path/to/file.csv" -> "file.csv"
+    # Remove path components - get just the filename
     filename = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-    # 2. Remove NULL bytes: Prevent low-level string termination attacks
+    # Remove NULL bytes
     filename = filename.replace("\x00", "")
-    # 3. Whitelist: Keep only alphanumeric, dots, hyphens, and underscores
+    # Keep only safe characters: alphanumeric, dots, hyphens, underscores
     filename = re.sub(r'[^a-zA-Z0-9._-]', '', filename)
-    # 4. Truncate: Ensure the filename fits in the DB's 255 char limit while preserving extension
+    # Limit length
     if len(filename) > 255:
         name, ext = filename.rsplit(".", 1) if "." in filename else (filename, "")
         filename = name[:250] + ("." + ext if ext else "")
-    # 5. Default: Fallback if sanitization leaves the string empty
     return filename or "unnamed_file.csv"
+
+router = APIRouter()
+
+
+from app.services.token_store import get_tokens
 
 def get_current_tenant_id(xero_session_id: str = Cookie(None)) -> str:
     """
-    Dependency: Fetches the persistent Xero Tenant ID associated with the session.
-    Ensures data remains linked to the specific Xero organisation.
+    Dependency: fetch the persistent Xero Tenant ID associated with the session.
+    Ensures data remains linked to the organisation even after re-login.
     """
-    # 1. Validation: Fail if no session cookie exists
     if not xero_session_id:
         raise HTTPException(status_code=401, detail="No session found. Please connect to Xero.")
     
-    # 2. Lookup: Get session tokens from the DB
     tokens = get_tokens(xero_session_id)
-    # 3. Validation: Fail if session expired or tenant_id is missing
     if not tokens or not tokens.get("tenant_id"):
         raise HTTPException(status_code=401, detail="Organisation ID not found. Please reconnect to Xero.")
     
     return tokens["tenant_id"]
 
+
 @router.post("/upload")
 def upload_csv(
-    file: UploadFile = File(...),                    # The uploaded multipart file
-    tenant_id: str = Depends(get_current_tenant_id),  # The current Xero Org ID
+    file: UploadFile = File(...),
+    tenant_id: str = Depends(get_current_tenant_id),
 ):
     """
-    Main upload endpoint. Receives, parses, and persists a CSV bank statement.
+    Upload and parse a bank statement CSV file.
+    
+    Validates file type, parses/cleans the CSV, stores rows in DB,
+    and returns the cleaned data with duplicate flags.
+    
+    Args:
+        file: Uploaded CSV file (multipart form field)
+        xero_session_id: Session cookie for auth
+    
+    Returns:
+        Dict with upload_id, filename, row_count, duplicate_count, rows[]
+    
+    Raises:
+        HTTP 400: Bad file type (PDF, etc.) or empty file
+        HTTP 401: Not authenticated
+        HTTP 500: Parsing or DB error
     """
-    # 1. Extract Metadata: Get content type and sanitized name
+    # Validate file type - reject non-CSV files
     content_type = file.content_type or ""
     raw_filename = file.filename or ""
     filename = sanitize_filename(raw_filename)
     
-    # 2. Type Check: Reject files that don't look like CSVs
     if not filename.lower().endswith(".csv") and "csv" not in content_type.lower() and "text/" not in content_type.lower():
         raise HTTPException(
             status_code=400,
             detail=f"File must be a CSV. Got: {content_type or 'unknown type'}. Please upload a .csv file."
         )
     
-    # 3. Read Stream: Load the file bytes into memory
+    # Read file bytes
     try:
         file_bytes = file.file.read()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
     
-    # 4. Content Check: Reject empty files
     if not file_bytes:
         raise HTTPException(status_code=400, detail="File is empty. Please upload a valid CSV file.")
     
-    # 5. UUID Generation: Create a unique identifier for this batch of rows
+    # Generate upload ID and parse CSV
     upload_id = str(uuid.uuid4())
+    result = None
     
-    # 6. Parsing: Use the logic-heavy parser service to clean and normalize the data
     try:
+        # We pass tenant_id to parse_csv so it can include it in rows
         result = parse_csv(file_bytes, filename, upload_id, tenant_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse CSV: {str(e)}")
     
-    # 7. Quality Check: Fail if the parser couldn't find any valid rows
     if result["row_count"] == 0:
         raise HTTPException(
             status_code=400,
             detail="No valid rows found in CSV. Check that the file has Date, Amount, and Description columns."
         )
 
-    # 8. Database Persistence: Batch insert the results
+    # Bulk insert into database - use parameterized queries via SQLAlchemy ORM (injection-safe)
     db = SessionLocal()
     try:
         rows_to_insert = []
         for row in result["rows"]:
-            # Final sanitization pass before DB insertion
+            # Validate/sanitize each field before DB insert
             clean_filename = sanitize_filename(row["filename"])
-            clean_date = row["transaction_date"][:10]  # YYYY-MM-DD
-            clean_desc = (row["description"] or "")[:500]
+            clean_date = row["transaction_date"][:10]  # YYYY-MM-DD is max 10 chars
+            clean_desc = (row["description"] or "")[:500]  # Limit description length
             clean_raw = (row["raw_description"] or "")[:500]
             clean_amount = float(row["amount"]) if row["amount"] is not None else 0.0
             clean_duplicate = bool(row["is_duplicate"])
             
-            # Create the ORM object
             rows_to_insert.append(BankStatement(
                 upload_id=row["upload_id"],
                 filename=clean_filename,
-                tenant_id=tenant_id,
+                tenant_id=row["session_id"],  # We reused the session_id key in result rows
                 transaction_date=clean_date,
                 description=clean_desc,
                 raw_description=clean_raw,
                 amount=clean_amount,
                 is_duplicate=clean_duplicate,
             ))
-        
-        # 9. Bulk Save: More efficient than individual inserts for large CSVs
         db.bulk_save_objects(rows_to_insert)
         db.commit()
     except Exception as e:
-        # Rollback on failure to prevent partial uploads
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to save to database.")
+        print(f"DB Error during upload: {str(e)}") # Log for server-side debugging
+        raise HTTPException(status_code=500, detail="Failed to save to database. Please try again.")
     finally:
         db.close()
 
-    # 10. Return: Return the cleaned data immediately for the frontend to preview
     return {
         "upload_id": upload_id,
         "filename": filename,
@@ -144,14 +160,24 @@ def upload_csv(
         "rows": result["rows"],
     }
 
+
 @router.get("/uploads")
 def list_uploads(tenant_id: str = Depends(get_current_tenant_id)):
     """
-    Returns a summarized list of all past uploads for this organisation.
+    List all past uploads for the current session.
+
+    Groups rows by upload_id and returns summary info for each upload.
+
+    Args:
+        xero_session_id: Session cookie for auth
+
+    Returns:
+        List of uploads with upload_id, filename, uploaded_at, row_count, duplicate_count
     """
     db = SessionLocal()
     try:
-        # Fetch all bank rows for this tenant
+        # Get all rows for this session, then aggregate in Python
+        # to avoid SQLAlchemy func.cast issues
         rows = (
             db.query(BankStatement)
             .filter(BankStatement.tenant_id == tenant_id)
@@ -159,7 +185,7 @@ def list_uploads(tenant_id: str = Depends(get_current_tenant_id)):
             .all()
         )
 
-        # Python-side aggregation to group rows by their upload_id
+        # Group by upload_id in Python
         upload_map = {}
         for r in rows:
             uid = r.upload_id
@@ -175,10 +201,10 @@ def list_uploads(tenant_id: str = Depends(get_current_tenant_id)):
             if r.is_duplicate:
                 upload_map[uid]["duplicate_count"] += 1
 
-        # Return as a list
         return list(upload_map.values())
     finally:
         db.close()
+
 
 @router.get("/upload/{upload_id}")
 def get_upload(
@@ -186,11 +212,23 @@ def get_upload(
     tenant_id: str = Depends(get_current_tenant_id),
 ):
     """
-    Retrieves all rows for a specific upload UUID.
+    Get all rows for a specific upload.
+
+    Used to "re-open" past uploads. Returns rows sorted by transaction_date DESC.
+
+    Args:
+        upload_id: The UUID of the upload to retrieve
+        xero_session_id: Session cookie for auth
+
+    Returns:
+        Dict with upload_id, filename, rows[]
+
+    Raises:
+        HTTP 404: Upload not found or doesn't belong to session
     """
     db = SessionLocal()
     try:
-        # Verify that the upload belongs to the current organisation
+        # Verify ownership and get filename
         first_row = (
             db.query(BankStatement)
             .filter(
@@ -203,7 +241,7 @@ def get_upload(
         if not first_row:
             raise HTTPException(status_code=404, detail="Upload not found.")
 
-        # Fetch all rows for the batch
+        # Get all rows sorted by date descending
         rows = (
             db.query(BankStatement)
             .filter(
@@ -214,7 +252,6 @@ def get_upload(
             .all()
         )
 
-        # Return the payload
         return {
             "upload_id": upload_id,
             "filename": first_row.filename,
@@ -233,17 +270,28 @@ def get_upload(
     finally:
         db.close()
 
+
 @router.delete("/upload/{upload_id}")
 def delete_upload(
     upload_id: str,
     tenant_id: str = Depends(get_current_tenant_id),
 ):
     """
-    Permanently deletes an entire upload batch from the database.
+    Delete all rows for a specific upload.
+
+    Args:
+        upload_id: The UUID of the upload to delete
+        xero_session_id: Session cookie for auth
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTP 404: Upload not found or doesn't belong to session
     """
     db = SessionLocal()
     try:
-        # Ownership check
+        # Verify ownership
         count = (
             db.query(BankStatement)
             .filter(
@@ -256,7 +304,7 @@ def delete_upload(
         if count == 0:
             raise HTTPException(status_code=404, detail="Upload not found.")
 
-        # Batch delete
+        # Delete all rows for this upload
         db.query(BankStatement).filter(
             BankStatement.upload_id == upload_id,
             BankStatement.tenant_id == tenant_id,
@@ -268,6 +316,6 @@ def delete_upload(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Deletion failed.")
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()

@@ -9,6 +9,7 @@
 *   🤖 **Intelligent 3-Pass Matching**: A deterministic and heuristic engine that categorizes transactions into Matched, Possible, and Unmatched buckets with confidence scores (0-100%).
 *   🔗 **Native Xero Integration**: Seamless OAuth 2.0 handshake with real-time invoice fetching and background token rotation.
 *   📊 **Professional Reporting**: Export beautiful, multi-sheet Excel reconciliation summaries with full audit trails.
+*   📈 **Real-Time Financial Aggregation**: Live "Total Amount" calculations across all transaction buckets and navigation tabs for instant fiscal oversight.
 *   🎨 **Modern 3D Interactive UI**: A state-of-the-art interface featuring 3D animated testimonials, radial orbital features, and a high-density full-screen reconciliation workspace.
 *   🛡️ **Audit-Ready Actions**: Every manual match is timestamped and stored, ensuring compliance and data integrity.
 

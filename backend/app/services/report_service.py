@@ -2,163 +2,145 @@ import pandas as pd
 import io
 from datetime import datetime
 from typing import List, Dict, Any
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 
 def generate_reconciliation_excel(report_data: Dict[str, Any]) -> io.BytesIO:
     """
-    Generates a professional multi-sheet Excel report from the reconciliation results.
-    
-    Sheets:
-    1. Summary - High-level metrics (Counts + Total Amounts)
-    2. Matched - Detailed list of matched transactions
-    3. Unmatched Bank - Outstanding bank transactions
-    4. Unmatched Xero - Outstanding Xero invoices
-    5. Audit Trail - History of manual actions
+    Generates a high-fidelity, comprehensive Excel reconciliation report.
+    Includes Overview, Matched, Possible, Unmatched Bank, Unmatched Xero, and Audit Trail.
     """
-    # Initialize an in-memory buffer to hold the Excel file bytes
     output = io.BytesIO()
     
     # --- Data Extraction ---
-    # Retrieve summary metrics from the input report object
     summary = report_data.get("summary", {})
-    # Retrieve the four primary reconciliation buckets
     buckets = report_data.get("buckets", {})
+    
     matched_items = buckets.get("matched", [])
+    possible_items = buckets.get("possible", [])
     unmatched_bank = buckets.get("unmatched_bank", [])
     unmatched_xero = buckets.get("unmatched_xero", [])
-    possible_items = buckets.get("possible", [])
 
-    # Helper function to safely parse and absolute-value numeric amounts from dictionaries
-    def safe_float(val):
-        """Safely converts input to an absolute float, defaulting to 0.0 on failure."""
-        try:
-            # We use abs() because for reporting purposes, we usually care about the magnitude
-            return abs(float(val or 0))
-        except (ValueError, TypeError):
-            return 0.0
-
-    # --- Calculation of Total Amounts ---
-    # Sum up the value of all outstanding (unmatched) bank transactions
-    total_bank_val = sum(safe_float(row.get("amount")) for row in unmatched_bank)
-    # Add the value of already matched bank transactions
-    total_bank_val += sum(safe_float(item.get("bank_transaction", {}).get("amount")) for item in matched_items)
-    # Add the value of 'possible' matches that are still pending review
-    total_bank_val += sum(safe_float(item.get("bank_transaction", {}).get("amount")) for item in possible_items)
-
-    # Calculate the dollar value of successful matches
-    matched_val = sum(safe_float(item.get("bank_transaction", {}).get("amount")) for item in matched_items)
-    # Calculate the dollar value of unmatched bank rows
-    unmatched_bank_val = sum(safe_float(row.get("amount")) for row in unmatched_bank)
-    # Calculate the dollar value of unmatched Xero invoices (using 'Total' field from Xero)
-    unmatched_xero_val = sum(safe_float(row.get("Total")) for row in unmatched_xero)
-
-    # --- 1. Summary Sheet ---
-    # Construct a structured list for the high-level KPI dashboard
+    # --- 1. Summary Sheet (KPIs) ---
     summary_data = [
-        {"Category": "TOTAL DATA OVERVIEW", "Count": "", "Total Value ($)": ""},
-        {"Category": "Total Bank Transactions (All)", "Count": summary.get("total_bank_rows", 0), "Total Value ($)": round(total_bank_val, 2)},
-        {"Category": "Total Xero Invoices (All)", "Count": summary.get("total_xero_invoices", 0), "Total Value ($)": ""},
-        {"Category": "", "Count": "", "Total Value ($)": ""}, # Visual divider row
-        {"Category": "RECONCILIATION STATUS", "Count": "", "Total Value ($)": ""},
-        {"Category": "Successfully Matched", "Count": summary.get("matched_count", 0), "Total Value ($)": round(matched_val, 2)},
-        {"Category": "Outstanding Bank (Unmatched)", "Count": summary.get("unmatched_bank_count", 0), "Total Value ($)": round(unmatched_bank_val, 2)},
-        {"Category": "Outstanding Xero (Unmatched)", "Count": summary.get("unmatched_xero_count", 0), "Total Value ($)": round(unmatched_xero_val, 2)},
-        # Summary of items needing manual human review
-        {"Category": "Possible Matches (Pending Review)", "Count": summary.get("possible_count", 0), "Total Value ($)": round(sum(safe_float(i.get("bank_transaction", {}).get("amount")) for i in possible_items), 2)},
+        {"METRIC": "UPLOAD OVERVIEW", "VALUE": "", "DETAILS": ""},
+        {"METRIC": "Total Bank Transactions", "VALUE": summary.get("total_bank_rows", 0), "DETAILS": f"${summary.get('matched_amount', 0) + summary.get('unmatched_bank_amount', 0) + summary.get('possible_amount', 0):,.2f}"},
+        {"METRIC": "Total Xero Invoices", "VALUE": summary.get("total_xero_invoices", 0), "DETAILS": ""},
+        {"METRIC": "", "VALUE": "", "DETAILS": ""},
+        {"METRIC": "RECONCILIATION BREAKDOWN", "VALUE": "COUNT", "DETAILS": "TOTAL AMOUNT ($)"},
+        {"METRIC": "Successfully Matched", "VALUE": summary.get("matched_count", 0), "DETAILS": f"${summary.get('matched_amount', 0):,.2f}"},
+        {"METRIC": "Possible Matches (Pending)", "VALUE": summary.get("possible_count", 0), "DETAILS": f"${summary.get('possible_amount', 0):,.2f}"},
+        {"METRIC": "Outstanding Bank (Unmatched)", "VALUE": summary.get("unmatched_bank_count", 0), "DETAILS": f"${summary.get('unmatched_bank_amount', 0):,.2f}"},
+        {"METRIC": "Outstanding Xero (Unmatched)", "VALUE": summary.get("unmatched_xero_count", 0), "DETAILS": f"${summary.get('unmatched_xero_amount', 0):,.2f}"},
     ]
-    # Convert the summary list into a Pandas DataFrame for easy Excel conversion
     df_summary = pd.DataFrame(summary_data)
 
-    # --- 2. Matched Sheet ---
-    # Build a detailed list of every successful link between Bank and Xero
-    matched_rows = []
-    for item in matched_items:
-        bt = item.get("bank_transaction", {})
-        xi = item.get("xero_invoice", {})
-        matched_rows.append({
-            "Date": bt.get("transaction_date"),
-            "Bank Description": bt.get("description"),
-            "Bank Amount": bt.get("amount"),
-            "Xero Invoice #": xi.get("InvoiceNumber"),
-            "Xero Contact": xi.get("Contact", {}).get("Name"),
-            "Xero Amount": xi.get("Total"),
-            "Confidence %": item.get("confidence"),
-            # Distinguish between system-suggested and user-confirmed matches
-            "Method": "Manual" if item.get("is_manual") else "Auto"
+    # --- 2. Matched Details Sheet ---
+    matched_list = []
+    for m in matched_items:
+        bt = m.get("bank_transaction", {})
+        xi = m.get("xero_invoice", {})
+        matched_list.append({
+            "DATE": bt.get("transaction_date"),
+            "BANK DESCRIPTION": bt.get("description"),
+            "BANK AMOUNT": bt.get("amount"),
+            "LINKED INVOICE": xi.get("InvoiceNumber"),
+            "CONTACT": xi.get("Contact", {}).get("Name"),
+            "CONFIDENCE": f"{m.get('confidence')}%",
+            "TYPE": "Manual" if m.get("is_manual") else "Auto"
         })
-    # Handle empty case to prevent DataFrame errors
-    df_matched = pd.DataFrame(matched_rows) if matched_rows else pd.DataFrame(columns=["Date", "Bank Description", "Bank Amount", "Xero Invoice #", "Xero Contact", "Xero Amount", "Confidence %", "Method"])
+    df_matched = pd.DataFrame(matched_list) if matched_list else pd.DataFrame([{"INFO": "No matched items recorded."}])
 
-    # --- 3. Unmatched Bank Sheet ---
-    # Extract only the relevant columns for bank transactions that didn't find a match
-    if unmatched_bank:
-        df_unmatched_bank = pd.DataFrame(unmatched_bank)[[
-            "transaction_date", "description", "amount"
-        ]].rename(columns={
-            "transaction_date": "Date",
-            "description": "Description",
-            "amount": "Amount"
+    # --- 3. Possible Matches Sheet ---
+    possible_list = []
+    for p in possible_items:
+        bt = p.get("bank_transaction", {})
+        xi = p.get("xero_invoice", {})
+        possible_list.append({
+            "DATE": bt.get("transaction_date"),
+            "BANK DESCRIPTION": bt.get("description"),
+            "BANK AMOUNT": bt.get("amount"),
+            "SUGGESTED INVOICE": xi.get("InvoiceNumber"),
+            "SUGGESTED CONTACT": xi.get("Contact", {}).get("Name"),
+            "MATCH SCORE": f"{p.get('confidence')}%",
+            "REASON": "Ambiguous" if p.get("is_ambiguous") else "Low Confidence"
         })
-    else:
-        # Default empty DataFrame with correct headers
-        df_unmatched_bank = pd.DataFrame(columns=["Date", "Description", "Amount"])
+    df_possible = pd.DataFrame(possible_list) if possible_list else pd.DataFrame([{"INFO": "No possible matches found."}])
 
-    # --- 4. Unmatched Xero Sheet ---
-    # Detailed list of Xero invoices still awaiting payment/reconciliation
-    xero_rows = []
-    for xi in unmatched_xero:
-        xero_rows.append({
-            "Invoice #": xi.get("InvoiceNumber"),
-            "Contact": xi.get("Contact", {}).get("Name"),
-            "Date": xi.get("DateString") or xi.get("Date"),
-            "Amount": xi.get("Total"),
-            "Status": xi.get("Status")
+    # --- 4. Unmatched Bank Sheet ---
+    bank_list = []
+    for b in unmatched_bank:
+        bank_list.append({
+            "DATE": b.get("transaction_date"),
+            "DESCRIPTION": b.get("description"),
+            "AMOUNT": b.get("amount")
         })
-    df_unmatched_xero = pd.DataFrame(xero_rows) if xero_rows else pd.DataFrame(columns=["Invoice #", "Contact", "Date", "Amount", "Status"])
+    df_bank = pd.DataFrame(bank_list) if bank_list else pd.DataFrame([{"INFO": "No unmatched bank items found."}])
 
-    # --- 5. Audit Trail ---
-    # Log of every manual reconciliation action taken by the user
-    audit_rows = []
-    for item in matched_items:
-        # We only care about rows flagged as manual for the audit trail
-        if item.get("is_manual"):
-            bt = item.get("bank_transaction", {})
-            xi = item.get("xero_invoice", {})
-            audit_rows.append({
-                "Action Timestamp": bt.get("reconciled_at") or "Prior Session",
-                "Bank Transaction": bt.get("description"),
-                "Linked Invoice": f"{xi.get('InvoiceNumber')} ({xi.get('Contact', {}).get('Name')})",
-                "Amount": bt.get("amount"),
-                "User Action": "Manual Approval"
+    # --- 5. Unmatched Xero Sheet ---
+    xero_list = []
+    for x in unmatched_xero:
+        xero_list.append({
+            "INVOICE #": x.get("InvoiceNumber"),
+            "CONTACT": x.get("Contact", {}).get("Name"),
+            "DATE": x.get("DateString") or x.get("Date"),
+            "AMOUNT": x.get("Total"),
+            "STATUS": x.get("Status")
+        })
+    df_xero = pd.DataFrame(xero_list) if xero_list else pd.DataFrame([{"INFO": "No unmatched Xero invoices found."}])
+
+    # --- 6. Audit Trail Sheet ---
+    audit_list = []
+    for m in matched_items:
+        if m.get("is_manual"):
+            bt = m.get("bank_transaction", {})
+            xi = m.get("xero_invoice", {})
+            audit_list.append({
+                "USER CONFIRMATION TIMESTAMP": bt.get("reconciled_at") or "Existing Record",
+                "BANK TRANSACTION": bt.get("description"),
+                "LINKED XERO INVOICE": f"{xi.get('InvoiceNumber')} ({xi.get('Contact', {}).get('Name')})",
+                "AMOUNT": bt.get("amount"),
+                "RESULT": "Manual Link Approved"
             })
-    df_audit = pd.DataFrame(audit_rows) if audit_rows else pd.DataFrame(columns=["Action Timestamp", "Bank Transaction", "Linked Invoice", "Amount", "User Action"])
+    df_audit = pd.DataFrame(audit_list) if audit_list else pd.DataFrame([{"INFO": "No manual approvals recorded."}])
 
-    # --- Write to Excel ---
-    # Use the ExcelWriter context manager with the 'openpyxl' engine
+    # --- Write and Style ---
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # Write each DataFrame to its respective sheet
-        df_summary.to_excel(writer, sheet_name="Summary", index=False)
-        df_matched.to_excel(writer, sheet_name="Matched Details", index=False)
-        df_unmatched_bank.to_excel(writer, sheet_name="Unmatched Bank", index=False)
-        df_unmatched_xero.to_excel(writer, sheet_name="Unmatched Xero", index=False)
+        df_summary.to_excel(writer, sheet_name="Overview", index=False)
+        df_matched.to_excel(writer, sheet_name="Matched Items", index=False)
+        df_possible.to_excel(writer, sheet_name="Possible Matches", index=False)
+        df_bank.to_excel(writer, sheet_name="Unmatched Bank", index=False)
+        df_xero.to_excel(writer, sheet_name="Unmatched Xero", index=False)
         df_audit.to_excel(writer, sheet_name="Audit Trail", index=False)
 
-        # Basic Styling: Iterate through each sheet to autofit column widths
-        for sheetname in writer.sheets:
-            worksheet = writer.sheets[sheetname]
-            for col in worksheet.columns:
-                max_length = 0
-                column = col[0].column_letter # Get the column letter (A, B, C...)
-                for cell in col:
-                    try:
-                        # Measure the string representation of the cell value
-                        if cell.value and len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                # Set width with a small buffer (+2)
-                adjusted_width = (max_length + 2)
-                worksheet.column_dimensions[column].width = adjusted_width
+        # Styling
+        header_fill = PatternFill(start_color="059669", end_color="059669", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        border = Border(left=Side(style='thin', color="D1D5DB"), 
+                        right=Side(style='thin', color="D1D5DB"), 
+                        top=Side(style='thin', color="D1D5DB"), 
+                        bottom=Side(style='thin', color="D1D5DB"))
 
-    # Reset buffer pointer to the beginning before returning
+        for sheetname in writer.sheets:
+            ws = writer.sheets[sheetname]
+            for row in ws.iter_rows(min_row=1, max_row=1):
+                for cell in row:
+                    cell.fill = header_fill
+                    cell.font = header_font
+                    cell.alignment = Alignment(horizontal="center")
+
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    cell.border = border
+                    if cell.row > 1 and cell.row % 2 == 0:
+                        cell.fill = PatternFill(start_color="F9FAFB", end_color="F9FAFB", fill_type="solid")
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except: pass
+                ws.column_dimensions[column].width = min(max_length + 3, 60)
+
     output.seek(0)
     return output
