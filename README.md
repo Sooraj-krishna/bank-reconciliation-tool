@@ -1,201 +1,113 @@
-# 💳 Bank-to-Books Reconciliation Tool
+# 💳 BankSync: AI-Powered Reconciliation Engine
 
-A full-stack application that automates the reconciliation of bank transactions with accounting records using **React**, **FastAPI**, and integration with **Xero**.
-
----
-
-## 🚀 Overview
-
-Manual reconciliation is time-consuming and error-prone. This tool streamlines the process by:
-
-* Importing bank transactions (CSV)
-* Fetching accounting data from Xero
-* Automatically matching transactions
-* Highlighting unmatched and partially matched records
-* Providing a clear and interactive UI for review
+**BankSync** is a premium, full-stack financial tool designed to bridge the gap between bank statements and accounting software. It leverages a multi-tier heuristic matching engine to automate the tedious process of reconciliation, providing a "lean-back" interactive experience for financial controllers.
 
 ---
 
-## 🧠 Key Features
+## 🚀 Vision & Key Features
 
-* 🔗 **Xero OAuth Integration** (secure authentication)
-* 📄 **CSV Upload & Parsing**
-* 🤖 **Automated Matching Engine**
-* 📊 **Match Classification**
-
-  * Matched
-  * Possible Matches
-  * Unmatched
-* ⚠️ **Error Handling System**
-* 🎨 **Modern UI with Tailwind CSS**
-* 🔄 **Real-time frontend ↔ backend communication**
+*   🤖 **Intelligent 3-Pass Matching**: A deterministic and heuristic engine that categorizes transactions into Matched, Possible, and Unmatched buckets with confidence scores (0-100%).
+*   🔗 **Native Xero Integration**: Seamless OAuth 2.0 handshake with real-time invoice fetching and background token rotation.
+*   📊 **Professional Reporting**: Export beautiful, multi-sheet Excel reconciliation summaries with full audit trails.
+*   🎨 **Modern 3D Interactive UI**: A state-of-the-art interface featuring 3D animated testimonials, radial orbital features, and a high-density full-screen reconciliation workspace.
+*   🛡️ **Audit-Ready Actions**: Every manual match is timestamped and stored, ensuring compliance and data integrity.
 
 ---
 
 ## 🏗️ Tech Stack
 
-### Frontend
-
-* React (Vite)
-* Tailwind CSS
-* Axios
-
-### Backend
-
-* FastAPI
-* Python
-* Requests (for API calls)
-* python-dotenv
-
-### External Integration
-
-* Xero API (OAuth 2.0)
-
----
-
-## 📂 Project Structure
-
-```
-bank-reconciliation-tool/
-│
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── services/
-│   │   ├── models/
-│   │   └── utils/
-│   ├── .env
-│
-├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── App.jsx
-│
-├── STANDUP.md
-└── README.md
-```
+| Component | Technology |
+| :--- | :--- |
+| **Frontend** | React (Vite), Tailwind CSS, Framer Motion, Lucide Icons, Axios |
+| **Backend** | FastAPI (Python), SQLAlchemy ORM, SQLite |
+| **Integration** | Xero OAuth 2.0 & Accounting API |
+| **Reporting** | Pandas, OpenPyXL (Excel Generation) |
 
 ---
 
 ## ⚙️ Setup Instructions
 
-### 1️⃣ Clone Repository
-
+### 1️⃣ Clone and Navigate
 ```bash
-git clone <your-repo-url>
+git clone <repository-url>
 cd bank-reconciliation-tool
 ```
 
----
-
-### 2️⃣ Backend Setup
-
+### 2️⃣ Backend Configuration
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate   # Linux/Mac
-venv\Scripts\activate      # Windows
+source venv/bin/activate  # Linux/Mac
+# OR: venv\Scripts\activate # Windows
 
 pip install -r requirements.txt
+pip install pandas openpyxl  # Ensure reporting tools are present
 ```
 
-#### Create `.env`
-
-```
-DATABASE_URL=sqlite:///./app.db
-SECRET_KEY=your_secret_key
-
-XERO_CLIENT_ID=your_client_id
-XERO_CLIENT_SECRET=your_client_secret
+**Create a `.env` file in `/backend`:**
+```env
+XERO_CLIENT_ID=your_id
+XERO_CLIENT_SECRET=your_secret
 XERO_REDIRECT_URI=http://localhost:8000/auth/callback
+DATABASE_URL=sqlite:///./app.db
+SECRET_KEY=generate_a_random_string
 ```
 
-#### Run Backend
-
+### 3️⃣ Frontend Configuration
 ```bash
-uvicorn app.main:app --reload
-```
-
----
-
-### 3️⃣ Frontend Setup
-
-```bash
-cd frontend
+cd ../frontend
 npm install
 npm run dev
 ```
 
 ---
 
-## 🔐 OAuth Flow (Xero)
+## 🧠 Core Assumptions
 
-1. User clicks **Connect to Xero**
-2. Redirected to Xero login
-3. User grants permission
-4. Xero redirects back with authorization code
-5. Backend exchanges code for access token
-
----
-
-## 🧪 Current Progress
-
-### ✅ Day 1
-
-* Project setup (Frontend + Backend)
-* API communication established
-* CORS configured
-* Tailwind UI implemented
-* Reusable error handling component
-
-### 🔄 Day 2 (In Progress)
-
-* Xero OAuth integration
+1.  **Source of Truth**: Xero is considered the immutable source of truth for invoices. The tool does not modify Xero data; it only reads and links.
+2.  **CSV Schema**: The tool assumes bank statements contain at least `Date`, `Amount`, and `Description`. It uses a fuzzy-matching header extractor to handle different bank formats.
+3.  **Local Persistence**: SQLite is used for high-speed local development. It is assumed the app runs in a single-tenant environment for this MVP.
+4.  **Transaction Polarity**: It is assumed that bank withdrawals are negative and deposits are positive, though the engine is resilient to basic polarity flips.
 
 ---
 
-## 📌 Future Enhancements
+## ⚠️ Known Limitations
 
-* CSV upload & parsing
-* Matching engine (confidence-based logic)
-* Transaction dashboard
-* Persistent storage (PostgreSQL)
-* Token management & refresh handling
-* Improved UI (filters, tables, charts)
+*   **Fuzzy Thresholds**: The "Fuzzy Pass" is capped at a 5-day date window and ±1% amount discrepancy. Extreme outliers require manual matching.
+*   **Concurrency**: While background token refreshing is locked, the SQLite backend is not optimized for high-concurrency multi-user writes.
+*   **Large Datasets**: Statement uploads >10,000 rows may experience latency in the interactive 4-bucket UI without further pagination optimizations.
 
 ---
 
-## ⚠️ Challenges Faced
+## 🌊 Data Flow Diagram
 
-* CORS issues during frontend-backend communication
-* Tailwind CSS version conflicts (v4 vs v3)
-* React Strict Mode causing duplicate API calls
+```mermaid
+graph TD
+    A[Bank CSV] -->|Upload| B(Cleansing Engine)
+    B -->|Persist| C[(SQLite DB)]
+    D[Xero API] -->|OAuth| E(Invoice Fetcher)
+    C -->|Bank Data| F{Matching Engine}
+    E -->|Live Invoices| F
+    F -->|Bucket 1| G[Matched]
+    F -->|Bucket 2| H[Possible]
+    F -->|Bucket 3| I[Unmatched Bank]
+    F -->|Bucket 4| J[Unmatched Xero]
+    G & H & I & J -->|User Review| K[Manual Approval]
+    K -->|Update| C
+    C -->|Export| L[Excel Report]
+```
 
 ---
 
-## 🧠 Learnings
+## 🚀 Future Roadmap (What I'd do differently)
 
-* Real-world API integration (OAuth 2.0)
-* Debugging environment and dependency issues
-* Structuring scalable full-stack applications
-* Building reusable UI components
-
----
-
-## 📬 Submission
-
-* GitHub repository will be shared after completion
-* Daily updates maintained in `STANDUP.md`
+1.  **PostgreSQL Migration**: Move to a robust relational DB like PostgreSQL for production-grade concurrency and performance.
+2.  **WebSockets**: Implement real-time status updates so multiple users can see reconciliation progress simultaneously.
+3.  **Advanced OCR**: Integrate a service to scan physical receipts and match them directly to "Unmatched Bank" items.
+4.  **Dockerization**: Orchestrate the stack with Docker Compose for one-command deployment across any environment.
 
 ---
 
 ## 👨‍💻 Author
-
-Sooraj
-(Full Stack Developer | React | FastAPI | Python)
-
----
+**Sooraj**
+*Full Stack Developer | Financial Tech Specialist*
