@@ -90,3 +90,23 @@ def test_ambiguity_handling():
     # Should be in possible
     assert report["summary"]["possible_count"] == 1
     assert report["buckets"]["possible"][0]["is_ambiguous"] == True
+
+def test_financial_aggregation():
+    """
+    Test that total amounts are correctly summed in the summary.
+    """
+    bank_rows = [
+        {"amount": 100.00, "transaction_date": "2025-01-01", "description": "Match"},
+        {"amount": -50.00, "transaction_date": "2025-01-02", "description": "Unmatched Bank"}
+    ]
+    xero_invoices = [
+        {"InvoiceID": "1", "Total": 100.00, "DateString": "2025-01-01", "InvoiceNumber": "Match"},
+        {"InvoiceID": "2", "Total": 200.00, "DateString": "2025-01-01", "InvoiceNumber": "Leftover"}
+    ]
+    
+    report = run_reconciliation(bank_rows, xero_invoices)
+    
+    # Check amounts (Engine uses absolute values for bucket totals in summary)
+    assert report["summary"]["matched_amount"] == 100.00
+    assert report["summary"]["unmatched_bank_amount"] == 50.00
+    assert report["summary"]["unmatched_xero_amount"] == 200.00

@@ -100,12 +100,27 @@ graph TD
 
 ---
 
+## 🧪 Testing & Quality Assurance
+
+BankSync is built with a "test-first" mentality to ensure financial data integrity.
+
+*   **Core Logic Tests**: Located in `backend/tests/test_reconciliation.py`. Covers exact matches, heuristic date slippage, ambiguity handling, and one-to-one pair locking.
+*   **Reporting Tests**: Located in `backend/tests/test_report_service.py`. Validates the generation of multi-sheet Excel exports, audit trail timestamps, and placeholder logic for empty states.
+*   **Run Tests**:
+    ```bash
+    cd backend
+    export PYTHONPATH=$PYTHONPATH:.
+    pytest tests/
+    ```
+
+---
+
 ## 🚀 Future Roadmap (What I'd do differently)
 
-1.  **PostgreSQL Migration**: Move to a robust relational DB like PostgreSQL for production-grade concurrency and performance.
+1.  **PostgreSQL Migration**: Move to a robust relational DB like PostgreSQL for production-grade concurrency.
 2.  **WebSockets**: Implement real-time status updates so multiple users can see reconciliation progress simultaneously.
-3.  **Advanced OCR**: Integrate a service to scan physical receipts and match them directly to "Unmatched Bank" items.
-4.  **Dockerization**: Orchestrate the stack with Docker Compose for one-command deployment across any environment.
+3.  **Advanced OCR**: scan physical receipts and match them directly to "Unmatched Bank" items.
+4.  **Dockerization**: Orchestrate the stack for one-command deployment.
 
 ---
 

@@ -37,18 +37,15 @@ export default class ErrorBoundary extends Component {
     // If an error was caught, render the fallback UI
     if (this.state.hasError) {
       return (
-        // Centered fallback card on a light gray background
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-          <div className="bg-white shadow-xl rounded-2xl p-8 w-[420px] text-center">
-            <h1 className="text-2xl font-bold mb-2 text-red-600">Something went wrong</h1>
-            {/* Display the error message, with a generic fallback if unavailable */}
-            <p className="text-gray-500 mb-4">
+        <div className="min-h-screen flex items-center justify-center bg-app-bg transition-colors duration-300">
+          <div className="bg-app-surface shadow-2xl rounded-3xl p-8 w-[420px] text-center border border-app-border">
+            <h1 className="text-2xl font-serif font-black mb-2 text-red-500 tracking-tight uppercase">Something went wrong</h1>
+            <p className="text-app-text-muted font-bold mb-6 italic">
               {this.state.error?.message || "An unexpected error occurred."}
             </p>
-            {/* Reset the error state so the children re-render (retry) */}
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+              className="bg-app-emerald text-white py-3 px-8 rounded-xl font-black shadow-lg shadow-app-emerald/20 hover:opacity-90 transition uppercase text-xs tracking-widest"
             >
               Try Again
             </button>

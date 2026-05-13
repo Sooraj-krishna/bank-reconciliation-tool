@@ -18,8 +18,8 @@ def generate_reconciliation_excel(report_data: Dict[str, Any]) -> io.BytesIO:
     
     matched_items = buckets.get("matched", [])
     possible_items = buckets.get("possible", [])
-    unmatched_bank = buckets.get("unmatched_bank", [])
-    unmatched_xero = buckets.get("unmatched_xero", [])
+    unmatched_bank_items = buckets.get("unmatched_bank", [])
+    unmatched_xero_items = buckets.get("unmatched_xero", [])
 
     # --- 1. Summary Sheet (KPIs) ---
     summary_data = [
@@ -37,69 +37,69 @@ def generate_reconciliation_excel(report_data: Dict[str, Any]) -> io.BytesIO:
 
     # --- 2. Matched Details Sheet ---
     matched_list = []
-    for m in matched_items:
-        bt = m.get("bank_transaction", {})
-        xi = m.get("xero_invoice", {})
+    for match in matched_items:
+        bank_transaction = match.get("bank_transaction", {})
+        xero_invoice = match.get("xero_invoice", {})
         matched_list.append({
-            "DATE": bt.get("transaction_date"),
-            "BANK DESCRIPTION": bt.get("description"),
-            "BANK AMOUNT": bt.get("amount"),
-            "LINKED INVOICE": xi.get("InvoiceNumber"),
-            "CONTACT": xi.get("Contact", {}).get("Name"),
-            "CONFIDENCE": f"{m.get('confidence')}%",
-            "TYPE": "Manual" if m.get("is_manual") else "Auto"
+            "DATE": bank_transaction.get("transaction_date"),
+            "BANK DESCRIPTION": bank_transaction.get("description"),
+            "BANK AMOUNT": bank_transaction.get("amount"),
+            "LINKED INVOICE": xero_invoice.get("InvoiceNumber"),
+            "CONTACT": xero_invoice.get("Contact", {}).get("Name"),
+            "CONFIDENCE": f"{match.get('confidence')}%",
+            "TYPE": "Manual" if match.get("is_manual") else "Auto"
         })
     df_matched = pd.DataFrame(matched_list) if matched_list else pd.DataFrame([{"INFO": "No matched items recorded."}])
 
     # --- 3. Possible Matches Sheet ---
     possible_list = []
-    for p in possible_items:
-        bt = p.get("bank_transaction", {})
-        xi = p.get("xero_invoice", {})
+    for possible_match in possible_items:
+        bank_transaction = possible_match.get("bank_transaction", {})
+        xero_invoice = possible_match.get("xero_invoice", {})
         possible_list.append({
-            "DATE": bt.get("transaction_date"),
-            "BANK DESCRIPTION": bt.get("description"),
-            "BANK AMOUNT": bt.get("amount"),
-            "SUGGESTED INVOICE": xi.get("InvoiceNumber"),
-            "SUGGESTED CONTACT": xi.get("Contact", {}).get("Name"),
-            "MATCH SCORE": f"{p.get('confidence')}%",
-            "REASON": "Ambiguous" if p.get("is_ambiguous") else "Low Confidence"
+            "DATE": bank_transaction.get("transaction_date"),
+            "BANK DESCRIPTION": bank_transaction.get("description"),
+            "BANK AMOUNT": bank_transaction.get("amount"),
+            "SUGGESTED INVOICE": xero_invoice.get("InvoiceNumber"),
+            "SUGGESTED CONTACT": xero_invoice.get("Contact", {}).get("Name"),
+            "MATCH SCORE": f"{possible_match.get('confidence')}%",
+            "REASON": "Ambiguous" if possible_match.get("is_ambiguous") else "Low Confidence"
         })
     df_possible = pd.DataFrame(possible_list) if possible_list else pd.DataFrame([{"INFO": "No possible matches found."}])
 
     # --- 4. Unmatched Bank Sheet ---
-    bank_list = []
-    for b in unmatched_bank:
-        bank_list.append({
-            "DATE": b.get("transaction_date"),
-            "DESCRIPTION": b.get("description"),
-            "AMOUNT": b.get("amount")
+    unmatched_bank_list = []
+    for bank_item in unmatched_bank_items:
+        unmatched_bank_list.append({
+            "DATE": bank_item.get("transaction_date"),
+            "DESCRIPTION": bank_item.get("description"),
+            "AMOUNT": bank_item.get("amount")
         })
-    df_bank = pd.DataFrame(bank_list) if bank_list else pd.DataFrame([{"INFO": "No unmatched bank items found."}])
+    df_bank = pd.DataFrame(unmatched_bank_list) if unmatched_bank_list else pd.DataFrame([{"INFO": "No unmatched bank items found."}])
 
     # --- 5. Unmatched Xero Sheet ---
-    xero_list = []
-    for x in unmatched_xero:
-        xero_list.append({
-            "INVOICE #": x.get("InvoiceNumber"),
-            "CONTACT": x.get("Contact", {}).get("Name"),
-            "DATE": x.get("DateString") or x.get("Date"),
-            "AMOUNT": x.get("Total"),
-            "STATUS": x.get("Status")
+    unmatched_xero_list = []
+    for xero_item in unmatched_xero_items:
+        unmatched_xero_list.append({
+            "INVOICE #": xero_item.get("InvoiceNumber"),
+            "CONTACT": xero_item.get("Contact", {}).get("Name"),
+            "DATE": xero_item.get("DateString") or xero_item.get("Date"),
+            "AMOUNT": xero_item.get("Total"),
+            "STATUS": xero_item.get("Status")
         })
-    df_xero = pd.DataFrame(xero_list) if xero_list else pd.DataFrame([{"INFO": "No unmatched Xero invoices found."}])
+    df_xero = pd.DataFrame(unmatched_xero_list) if unmatched_xero_list else pd.DataFrame([{"INFO": "No unmatched Xero invoices found."}])
 
     # --- 6. Audit Trail Sheet ---
     audit_list = []
-    for m in matched_items:
-        if m.get("is_manual"):
-            bt = m.get("bank_transaction", {})
-            xi = m.get("xero_invoice", {})
+    for match in matched_items:
+        if match.get("is_manual"):
+            bank_transaction = match.get("bank_transaction", {})
+            xero_invoice = match.get("xero_invoice", {})
             audit_list.append({
-                "USER CONFIRMATION TIMESTAMP": bt.get("reconciled_at") or "Existing Record",
-                "BANK TRANSACTION": bt.get("description"),
-                "LINKED XERO INVOICE": f"{xi.get('InvoiceNumber')} ({xi.get('Contact', {}).get('Name')})",
-                "AMOUNT": bt.get("amount"),
+                "USER CONFIRMATION TIMESTAMP": bank_transaction.get("reconciled_at") or "Existing Record",
+                "BANK TRANSACTION": bank_transaction.get("description"),
+                "LINKED XERO INVOICE": f"{xero_invoice.get('InvoiceNumber')} ({xero_invoice.get('Contact', {}).get('Name')})",
+                "AMOUNT": bank_transaction.get("amount"),
                 "RESULT": "Manual Link Approved"
             })
     df_audit = pd.DataFrame(audit_list) if audit_list else pd.DataFrame([{"INFO": "No manual approvals recorded."}])

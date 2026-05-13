@@ -16,6 +16,15 @@ import io
 import re
 from datetime import datetime
 from typing import Optional
+from app.core.config import (
+    CSV_DATE_ALIASES,
+    CSV_DESC_ALIASES,
+    CSV_REF_ALIASES,
+    CSV_DEBIT_ALIASES,
+    CSV_CREDIT_ALIASES,
+    CSV_BALANCE_ALIASES,
+    CSV_AMOUNT_PRIORITY_ALIASES
+)
 
 
 # Date format attempts in order of priority
@@ -57,52 +66,40 @@ def parse_date(raw: str) -> Optional[str]:
 
 def parse_amount(raw: str) -> Optional[float]:
     """
-    Parse a messy amount string into a clean float.
+    Parse a messy amount string into a clean float with sign awareness.
 
     Handles:
-    - Currency symbols: $250.50, ₹1500, €100
+    - Currency symbols: $250.50, ₹1500
     - Thousand separators: "1,500.00" → 1500.00
-    - Parentheses for negatives: "(200.00)" → -200.00
+    - Parentheses: "(200.00)" → -200.00
     - Trailing negatives: "200.00-" → -200.00
+    - Explicit signs: "-200.00", "+200.00"
 
-    Args:
-        raw: Raw amount string from CSV
-
-    Returns:
-        Float value (negatives preserved) or None
+    This version is robust against 'double negative' flips.
     """
     if not raw or not raw.strip():
         return None
 
     amt_str = raw.strip()
 
-    # Check for parentheses indicating negative (common in bank statements)
+    # 1. Detect if it SHOULD be negative based on markers
     is_negative = False
     if amt_str.startswith("(") and amt_str.endswith(")"):
         is_negative = True
-        amt_str = amt_str[1:-1]
-
-    # Check for trailing minus sign
-    if amt_str.endswith("-"):
+    elif amt_str.endswith("-"):
         is_negative = True
-        amt_str = amt_str[:-1]
-
-    # Check for starting minus sign
-    if amt_str.startswith("-"):
+    elif amt_str.startswith("-"):
         is_negative = True
-        amt_str = amt_str[1:]
 
-    # Remove currency symbols and thousand separators
-    amt_str = re.sub(r'[₹$€£,]', '', amt_str)
+    # 2. Strip ALL non-numeric characters except the decimal point
+    # This prevents '--75.00' issues
+    clean_str = re.sub(r'[^\d.]', '', amt_str)
 
-    # Remove any remaining non-numeric chars except . and -
-    amt_str = re.sub(r'[^\d.-]', '', amt_str)
-
-    if not amt_str:
+    if not clean_str:
         return None
 
     try:
-        value = float(amt_str)
+        value = float(clean_str)
         return -value if is_negative else value
     except ValueError:
         return None
@@ -156,76 +153,85 @@ def detect_duplicates(rows: list[dict]) -> list[dict]:
 
 def _guess_columns(headers: list[str]) -> dict:
     """
-    Guess the CSV column mapping by inspecting header names.
-
-    Looks for common aliases case-insensitively:
-    - Date: Date, Posted, Txn Date, Transaction Date, Posted Date
-    - Amount: Amount, Debit/Credit (combined), Withdrawal, Deposit
-    - Description: Description, Particulars, Narrative, Details, Memo
-
-    Args:
-        headers: List of CSV column header strings
-
-    Returns:
-        Dict with keys: 'date', 'amount', 'description' → header name or None
+    Guess the CSV column mapping with robust 'Balance' threat detection.
+    
+    Logic:
+    1. Scan for Date, Description, and Reference using aliases.
+    2. Identify and BLACKLIST columns that look like 'Balance' or 'Running Total'.
+    3. SEARCH for a Debit/Credit pair first (highest priority for split formats).
+    4. FALLBACK to a single 'Amount' column only if no pair is found.
     """
-    headers_lower = [h.lower().strip() for h in headers]
+    headers_lower = [header.lower().strip() for header in headers]
+    
+    # 1. Basic Metadata Columns
+    date_aliases = CSV_DATE_ALIASES
+    desc_aliases = CSV_DESC_ALIASES
+    ref_aliases = CSV_REF_ALIASES
 
-    # Date column aliases
-    date_aliases = ["date", "posted", "txn date", "transaction date", "posted date"]
-    date_col = None
-    for alias in date_aliases:
-        for i, h in enumerate(headers_lower):
-            if alias == h or alias in h:
-                date_col = headers[i]
-                break
-        if date_col:
-            break
+    def find_best(aliases, blacklist=None):
+        for alias in aliases:
+            for index, header in enumerate(headers_lower):
+                if blacklist and index in blacklist: 
+                    continue
+                if alias == header or alias in header:
+                    return headers[index], index
+        return None, None
 
-    # Amount column aliases (check for combined Debit/Credit too)
+    date_col, _ = find_best(date_aliases)
+    desc_col, _ = find_best(desc_aliases)
+    ref_col, _ = find_best(ref_aliases)
+
+    # 2. IDENTIFY THREATS: Columns that look like 'Balance' but contain 'Amount' or 'Total'
+    # We must NEVER pick these for transaction amounts.
+    balance_indices = []
+    balance_aliases = CSV_BALANCE_ALIASES
+    for index, header in enumerate(headers_lower):
+        if any(balance_alias in header for balance_alias in balance_aliases):
+            balance_indices.append(index)
+
+    # 3. AMOUNT DETECTION (Pair-First Strategy)
     amount_col = None
     debit_col = None
     credit_col = None
 
-    amount_aliases = ["amount", "amt", "value", "total"]
+    # Search for Debit/Credit Pair
+    debit_aliases = CSV_DEBIT_ALIASES
+    credit_aliases = CSV_CREDIT_ALIASES
 
-    for i, h in enumerate(headers_lower):
-        # Fuzzy match for amount
-        if any(alias in h for alias in amount_aliases):
-            amount_col = headers[i]
-            break
-        if h in ["debit", "withdrawal", "dr"]:
-            debit_col = headers[i]
-        if h in ["credit", "deposit", "cr"]:
-            credit_col = headers[i]
+    def is_match(header, aliases):
+        """Helper for strict word-based alias matching."""
+        header_words = re.findall(r'\w+', header.lower())
+        for alias in aliases:
+            # Exact match is always safe
+            if alias == header.lower(): return True
+            # Word-based match (e.g., 'in' matches 'paid in' but not 'invoice')
+            if alias in header_words: return True
+        return False
 
-    # If no single amount col but have debit/credit, use both
-    if not amount_col and debit_col:
-        amount_col = (debit_col, credit_col)  # Tuple signals combined mode
+    for index, header in enumerate(headers_lower):
+        if index in balance_indices: 
+            continue
+        if is_match(header, debit_aliases):
+            debit_col = headers[index]
+        if is_match(header, credit_aliases):
+            credit_col = headers[index]
 
-    # Description column aliases
-    desc_aliases = ["description", "particulars", "narrative", "details", "memo", "narration"]
-    desc_col = None
-    for alias in desc_aliases:
-        for i, h in enumerate(headers_lower):
-            if alias == h or alias in h:
-                desc_col = headers[i]
-                break
-        if desc_col:
-            break
+    # If we found at least a Debit column, assume it's a split format
+    if debit_col:
+        amount_col = (debit_col, credit_col) # credit_col might be None, which is fine
+    else:
+        # 4. FALLBACK: Single Amount Search
+        # We rank them to find the most likely 'Net' amount
+        priority_amount_aliases = CSV_AMOUNT_PRIORITY_ALIASES
+        amount_col_name, _ = find_best(priority_amount_aliases, blacklist=balance_indices)
+        amount_col = amount_col_name
 
-    # Reference column aliases
-    ref_aliases = ["reference", "ref", "ref number", "invoice", "inv #"]
-    ref_col = None
-    for alias in ref_aliases:
-        for i, h in enumerate(headers_lower):
-            if alias == h or alias in h:
-                ref_col = headers[i]
-                break
-        if ref_col:
-            break
-
-    return {"date": date_col, "amount": amount_col, "description": desc_col, "reference": ref_col}
+    return {
+        "date": date_col, 
+        "amount": amount_col, 
+        "description": desc_col, 
+        "reference": ref_col
+    }
 
 
 def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str) -> dict:
@@ -279,20 +285,27 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
         # Combine description and reference for better matching
         full_desc = f"{raw_desc} {raw_ref}".strip() if raw_ref else raw_desc
 
-        # Handle combined Debit/Credit columns
-        if isinstance(col_map["amount"], tuple):
-            debit = row.get(col_map["amount"][0], "")
-            credit = row.get(col_map["amount"][1], "")
-            # Debit is negative, Credit is positive
-            if debit and debit.strip():
-                raw_amount = f"-{debit}"  # Mark as negative
-            else:
-                raw_amount = credit
-
         # Clean fields
         date_val = parse_date(raw_date)
         desc_val = clean_description(full_desc)
-        amount_val = parse_amount(raw_amount) if raw_amount else None
+
+        # Handle combined Debit/Credit columns
+        if isinstance(col_map["amount"], tuple):
+            raw_debit = row.get(col_map["amount"][0], "")
+            raw_credit = row.get(col_map["amount"][1], "")
+            
+            debit_val = parse_amount(raw_debit)
+            credit_val = parse_amount(raw_credit)
+            
+            if debit_val is None and credit_val is None:
+                amount_val = None
+            else:
+                # Standard accounting: Inflow (Credit) - Outflow (Debit)
+                # We take abs(debit) to ensure it's always treated as a withdrawal
+                # even if the CSV already has a minus sign.
+                amount_val = (credit_val or 0.0) - abs(debit_val or 0.0)
+        else:
+            amount_val = parse_amount(raw_amount) if raw_amount else None
 
         # Skip rows where date or amount parsing failed
         if not date_val or amount_val is None:

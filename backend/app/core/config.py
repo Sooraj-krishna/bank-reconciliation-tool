@@ -14,8 +14,13 @@ from dotenv import load_dotenv
 # Load key-value pairs from the `.env` file (if present) into os.environ
 load_dotenv()
 
-# Database connection string (e.g. postgresql://user:pass@host:5432/db)
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Database connection string
+# Default to local SQLite for development. 
+# In production, Render provides a DATABASE_URL starting with 'postgres://', 
+# which we convert to 'postgresql://' for SQLAlchemy compatibility.
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Secret key used for signing session cookies, JWTs, or other cryptographic operations
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -48,3 +53,43 @@ XERO_REDIRECT_URI = os.getenv("XERO_REDIRECT_URI")
 
 # Frontend base URL — used for post-OAuth redirect
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# Xero OAuth2 Scopes — defining the permissions requested by the application.
+# These are kept here as application configuration rather than environment variables,
+# as they represent the fixed capabilities required by the app.
+XERO_SCOPES = [
+    "openid",
+    "profile",
+    "email",
+    "accounting.invoices",
+    "accounting.payments",
+    "accounting.banktransactions",
+    "accounting.settings",
+    "offline_access",
+]
+
+# Reconciliation Engine Thresholds
+# These constants control the matching logic between bank transactions and Xero invoices.
+RECON_AUTO_MATCH_THRESHOLD = 85       # Score required to automatically categorize as a match
+RECON_POSSIBLE_MATCH_THRESHOLD = 60   # Minimum score to be considered a possible match
+RECON_DATE_DIFF_HIGH_CONFIDENCE = 3    # Max days difference for Level 2 (High confidence)
+RECON_DATE_DIFF_MEDIUM_CONFIDENCE = 5  # Max days difference for Level 3 (Medium confidence)
+RECON_AMOUNT_DIFF_PERCENTAGE = 0.01    # Max amount difference (1%) for fuzzy matching
+RECON_SCORE_LEVEL_2 = 85               # Score for exact amount + date within high proximity
+RECON_SCORE_LEVEL_3 = 60               # Score for fuzzy amount + date within medium proximity
+RECON_SCORE_STRONG_POSSIBLE = 75       # Score for exact amount + exact reference match
+RECON_SCORE_CONTACT_ONLY = 65          # Score when only the contact name matches
+RECON_SCORE_CONTEXT_BOOST = 10         # Points added when contact name matches in description
+
+# CSV Parsing Aliases
+# These help the engine automatically identify columns in messy bank CSVs.
+CSV_DATE_ALIASES = ["date", "posted", "txn date", "transaction date", "posted date"]
+CSV_DESC_ALIASES = ["description", "particulars", "narrative", "details", "memo", "narration"]
+CSV_REF_ALIASES = ["reference", "ref", "ref number", "invoice", "inv #", "cheque"]
+CSV_DEBIT_ALIASES = ["debit", "withdrawal", "dr", "paid out", "out"]
+CSV_CREDIT_ALIASES = ["credit", "deposit", "cr", "paid in", "in"]
+CSV_BALANCE_ALIASES = ["balance", "bal", "running", "closing", "opening", "carry forward"]
+CSV_AMOUNT_PRIORITY_ALIASES = ["net amount", "total", "amount", "amt", "value"]
+
+# Session & Security Settings
+SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days in seconds

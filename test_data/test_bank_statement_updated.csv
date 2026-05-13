@@ -1,0 +1,40 @@
+Invoice Ref,Contact,Credit,debit,balance,Date,Description
+INV-0001,Hamilton Smith Ltd,541.25,,1541.25,2024-01-10,Payment received INV-0001
+INV-0002,Young Bros Transport,541.25,,2082.5,2024-01-10,Payment received INV-0002
+INV-0003,Port & Philip Freight,541.25,,2623.75,2024-01-11,Payment received INV-0003
+INV-0004,Rex Media Group,541.25,,3165.0,2024-01-12,Invoice settlement INV-0004
+INV-0005,Hamilton Smith Ltd,541.25,,3706.25,2024-01-15,Hamilton Smith Ltd transfer
+INV-0006,City Limousines,250.0,,3956.25,2024-01-18,City Limousines booking
+INV-0007,City Agency,593.23,,4549.48,2024-01-20,City Agency services
+INV-0008,Bank West,1299.0,,5848.48,2024-01-22,Bank West loan payment
+INV-0009,Ridgeway University,6187.5,,12035.98,2024-01-25,Ridgeway University fees
+INV-0010,Boom FM,541.25,,12577.23,2024-01-27,Boom FM ad payment
+BANK-FEE,,,45.0,12532.23,2024-01-28,Monthly bank fee
+ATM-WD,,,200.0,12332.23,2024-01-29,ATM cash withdrawal
+,Boom FM,1082.5,,13414.73,2024-02-01,Boom FM campaign extended
+,Petrie McLoud Watson & Associates,1407.25,,14821.98,2024-02-03,Legal consulting invoice
+,DIISR - Small Business Services,838.94,,15660.92,2024-02-05,DIISR business services
+,City Limousines,703.63,,16364.55,2024-02-07,City Limousines premium booking
+,Ridgeway University,6187.0,,22551.55,2024-02-10,Partial university payment
+Rpt,PowerDirect,119.08,,22670.63,2024-02-12,PowerDirect electricity bill
+Rpt,Net Connect,44.92,,22715.55,2024-02-13,Net Connect internet
+CARD-001,,,350.0,22365.55,2024-02-14,Corporate card expense
+,Net Connect,463.88,,22829.43,2024-02-14,Net Connect upgrade
+INV-0017,City Limousines,21.7,,22851.13,2024-02-15,City Limousines short ride
+INV-0027,Marine Systems,396.0,,23247.13,2024-02-16,Marine Systems repair
+Dep,Carlton Functions,1500.0,,24747.13,2024-02-18,Carlton Functions deposit
+08-4123,Hoyt Productions,5953.75,,30700.88,2024-02-20,Hoyt Productions event
+710,ABC Furniture,1000.0,,31700.88,2024-02-21,ABC Furniture purchase
+GB1-White,Bayside Wholesale,840.0,,32540.88,2024-02-22,Bayside Wholesale order
+CS815,Capital Cab Co,242.0,,32782.88,2024-02-23,Capital Cab Co booking
+SM0195,SMART Agency,2000.0,,34782.88,2024-02-25,SMART Agency project
+SM0210,SMART Agency,2500.0,,37282.88,2024-02-26,SMART Agency milestone
+INV-0026,Basket Case,914.55,,38197.43,2024-02-27,Basket Case supplies
+INV-0028,Bayside Club,234.0,,38431.43,2024-02-28,Bayside Club membership
+TRANSFER,,,1000.0,37431.43,2024-02-29,Transfer to savings account
+,Bayside Club,130.0,,37561.43,2024-03-01,Bayside Club additional
+,Unknown Vendor,300.0,,37861.43,2024-03-02,Random unmatched payment
+,Unknown Vendor,999.99,,38861.42,2024-03-03,Unknown vendor
+,Cafe Expense,,75.00,38786.42,2024-03-04,Coffee shop expense
+,Freelancer,,1200.00,37586.42,2024-03-05,Freelancer payout
+,Misc,,50.00,37536.42,2024-03-06,Misc expense

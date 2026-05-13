@@ -159,26 +159,26 @@ export default function Upload() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7]">
+    <div className="min-h-screen bg-app-bg text-app-text transition-colors duration-300">
       {error && <ErrorAlert message={error} onClose={() => setError("")} />}
 
       {/* Header - matches Dashboard.jsx */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-40">
+      <header className="bg-app-surface/90 backdrop-blur-md border-b border-app-border sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/dashboard")}
-              className="text-[#64748B] hover:text-[#1A1A1A] transition"
+              className="text-app-text-muted hover:text-app-text transition"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <div className="font-serif font-bold text-xl text-[#1A1A1A]">BankSync</div>
+            <div className="font-serif font-bold text-2xl text-app-text tracking-tight">BankSync</div>
           </div>
           <button
             onClick={() => navigate("/dashboard")}
-            className="text-sm text-[#64748B] hover:text-[#1A1A1A] transition"
+            className="text-sm text-app-text-muted hover:text-app-text transition font-bold"
           >
             Back to Dashboard
           </button>
@@ -187,13 +187,13 @@ export default function Upload() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <h1 className="font-serif font-bold text-3xl text-[#1A1A1A]">Upload Bank Statement</h1>
-          <p className="text-[#64748B] mt-1">Upload your bank CSV to start reconciliation</p>
+          <h1 className="font-serif font-bold text-3xl text-app-text">Upload Bank Statement</h1>
+          <p className="text-app-text-muted mt-1">Upload your bank CSV to start reconciliation</p>
         </div>
 
         {/* Upload Section */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6 mb-8">
-          <h2 className="font-semibold text-[#1A1A1A] mb-4">New Upload</h2>
+        <div className="bg-app-surface rounded-xl border border-app-border p-6 mb-8 transition-all">
+          <h2 className="font-semibold text-app-text mb-4">New Upload</h2>
 
           {/* Drag-and-drop zone */}
           <div
@@ -203,8 +203,8 @@ export default function Upload() {
             onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition ${
               isDragging
-                ? "border-[#059669] bg-emerald-50"
-                : "border-gray-200 hover:border-[#059669] hover:bg-[#FDFBF7]"
+                ? "border-app-emerald bg-app-emerald/10"
+                : "border-app-border hover:border-app-emerald hover:bg-app-muted/50"
             }`}
           >
             <input
@@ -215,14 +215,14 @@ export default function Upload() {
               onChange={(e) => handleFileSelect(e.target.files[0])}
             />
 
-            <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+            <svg className="w-12 h-12 text-app-border mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
 
-            <p className="text-[#1A1A1A] font-medium mb-1">
+            <p className="text-app-text font-medium mb-1">
               {file ? file.name : "Drop your CSV file here, or click to browse"}
             </p>
-            <p className="text-sm text-[#64748B]">
+            <p className="text-sm text-app-text-muted">
               Supports .csv files with Date, Amount, and Description columns
             </p>
           </div>
@@ -232,10 +232,10 @@ export default function Upload() {
             <button
               onClick={handleUpload}
               disabled={!file || uploading}
-              className={`px-6 py-2.5 rounded-full font-medium text-sm transition ${
+              className={`px-6 py-2.5 rounded-full font-bold text-sm transition ${
                 !file || uploading
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-[#059669] text-white hover:bg-emerald-700 shadow-sm"
+                  ? "bg-app-muted text-app-text-muted cursor-not-allowed opacity-50"
+                  : "bg-app-emerald text-white hover:opacity-90 shadow-lg shadow-app-emerald/20"
               }`}
             >
               {uploading ? (
@@ -254,7 +254,7 @@ export default function Upload() {
                   setFile(null);
                   setResult(null);
                 }}
-                className="text-sm text-[#64748B] hover:text-red-500 transition"
+                className="text-sm text-app-text-muted hover:text-red-500 transition"
               >
                 Clear
               </button>
@@ -266,15 +266,15 @@ export default function Upload() {
         {result && (
           <div className="mb-8">
             {/* Success summary */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <div className="bg-app-emerald/10 border border-app-emerald/20 rounded-xl p-4 mb-4 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-app-emerald/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-app-emerald" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <div>
-                <p className="font-semibold text-emerald-800">{result.filename} uploaded successfully!</p>
-                <p className="text-sm text-emerald-700">
+                <p className="font-bold text-app-emerald">{result.filename} uploaded successfully!</p>
+                <p className="text-sm text-app-text-muted font-medium">
                   {result.row_count} rows processed
                   {result.duplicate_count > 0 && ` • ${result.duplicate_count} duplicate(s) flagged`}
                 </p>
@@ -287,7 +287,7 @@ export default function Upload() {
             <div className="flex justify-end">
               <button
                 onClick={() => navigate(`/reconcile/${result.upload_id}`)}
-                className="bg-[#059669] text-white px-6 py-3 rounded-full font-bold hover:bg-emerald-700 shadow-lg flex items-center gap-2 transition-all hover:scale-105"
+                className="bg-app-emerald text-white px-8 py-4 rounded-full font-black hover:opacity-90 shadow-xl shadow-app-emerald/30 flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
               >
                 🚀 Start Intelligent Matching
               </button>
@@ -301,13 +301,13 @@ export default function Upload() {
             <div className="flex items-center gap-3 mb-4">
               <button
                 onClick={() => setSelectedUpload(null)}
-                className="text-[#64748B] hover:text-[#1A1A1A] transition"
+                className="text-app-text-muted hover:text-app-text transition"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h2 className="font-serif font-bold text-2xl text-[#1A1A1A]">
+              <h2 className="font-serif font-bold text-2xl text-app-text">
                 {selectedUpload.filename}
               </h2>
             </div>
@@ -317,34 +317,34 @@ export default function Upload() {
 
         {/* Past Uploads List */}
         {!selectedUpload && (
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50">
-              <h2 className="font-semibold text-[#1A1A1A]">Past Uploads</h2>
+          <div className="bg-app-surface rounded-xl border border-app-border overflow-hidden transition-all">
+            <div className="px-6 py-4 border-b border-app-border">
+              <h2 className="font-semibold text-app-text">Past Uploads</h2>
             </div>
 
             {loadingUploads ? (
               <div className="text-center py-8">
-                <div className="w-8 h-8 border-3 border-[#059669] border-t-transparent rounded-full animate-spin mx-auto" />
+                <div className="w-8 h-8 border-3 border-app-emerald border-t-transparent rounded-full animate-spin mx-auto" />
               </div>
             ) : uploads.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-[#64748B]">No past uploads yet.</p>
+                <p className="text-app-text-muted font-medium">No past uploads yet.</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-app-border">
                 {uploads.map((upload) => (
                   <div
                     key={upload.upload_id}
-                    className="px-6 py-4 flex items-center justify-between hover:bg-[#FDFBF7] transition group"
+                    className="px-6 py-4 flex items-center justify-between hover:bg-app-muted/50 transition group"
                   >
                     <div
                       className="flex-1 cursor-pointer"
                       onClick={() => handleSelectUpload(upload)}
                     >
-                      <p className="font-medium text-[#1A1A1A] group-hover:text-[#059669] transition">
+                      <p className="font-medium text-app-text group-hover:text-app-emerald transition">
                         {upload.filename}
                       </p>
-                      <p className="text-xs text-[#64748B] mt-1">
+                      <p className="text-xs text-app-text-muted mt-1">
                         {new Date(upload.uploaded_at).toLocaleDateString('en-GB', {
                           day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                         })}
@@ -356,19 +356,19 @@ export default function Upload() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleSelectUpload(upload)}
-                        className="text-xs text-[#059669] hover:text-emerald-700 font-medium transition"
+                        className="text-xs text-app-emerald hover:opacity-70 font-bold transition"
                       >
                         View
                       </button>
                       <button
                         onClick={() => navigate(`/reconcile/${upload.upload_id}`)}
-                        className="text-xs text-[#059669] hover:text-emerald-700 font-bold transition"
+                        className="text-xs text-app-emerald hover:opacity-70 font-black transition"
                       >
                         Reconcile
                       </button>
                       <button
                         onClick={() => setDeleteConfirm(upload.upload_id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium transition"
+                        className="text-xs text-red-500 hover:text-red-700 font-bold transition"
                       >
                         Delete
                       </button>
@@ -384,15 +384,15 @@ export default function Upload() {
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h3 className="font-bold text-[#1A1A1A] mb-2">Delete Upload?</h3>
-            <p className="text-sm text-[#64748B] mb-6">
+          <div className="bg-app-surface rounded-2xl p-6 max-w-sm w-full border border-app-border">
+            <h3 className="font-bold text-app-text mb-2">Delete Upload?</h3>
+            <p className="text-sm text-app-text-muted mb-6">
               This will permanently delete all rows from this upload. This action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm text-[#64748B] hover:text-[#1A1A1A] transition"
+                className="px-4 py-2 text-sm text-app-text-muted hover:text-app-text transition"
               >
                 Cancel
               </button>

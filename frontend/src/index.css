@@ -1,6 +1,32 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities;  
+@tailwind utilities;
+
+:root {
+  --bg-primary: #FDFBF7;
+  --bg-card: #FFFFFF;
+  --bg-muted: #F8FAFC;
+  --text-primary: #1A1A1A;
+  --text-secondary: #64748B;
+  --border-color: #E2E8F0;
+  --accent-emerald: #059669;
+}
+
+.dark {
+  --bg-primary: #0F172A;
+  --bg-card: #1E293B;
+  --bg-muted: #334155;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8; /* Boosted contrast for dark mode */
+  --border-color: #334155;
+  --accent-emerald: #10B981;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
 /* Animation for the pulsing effect */
 @keyframes pulse {
   0%, 100% {

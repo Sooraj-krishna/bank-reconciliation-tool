@@ -136,13 +136,13 @@ export default function RadialOrbitalTimeline({
 
   return (
     <div
-      className="w-full h-[600px] flex flex-col items-center justify-center bg-white rounded-3xl overflow-hidden relative border border-gray-200 shadow-inner"
+      className="w-full h-[600px] flex flex-col items-center justify-center bg-app-surface rounded-3xl overflow-hidden relative border border-app-border shadow-inner transition-colors duration-300"
       ref={containerRef}
       onClick={handleContainerClick}
     >
       {/* Background patterns */}
-      <div className="absolute inset-0 opacity-[0.6]" style={{
-        backgroundImage: `radial-gradient(#e2e8f0 1px, transparent 1px)`,
+      <div className="absolute inset-0 opacity-[0.2] dark:opacity-[0.1]" style={{
+        backgroundImage: `radial-gradient(var(--border-color) 1px, transparent 1px)`,
         backgroundSize: '32px 32px'
       }} />
 
@@ -162,13 +162,13 @@ export default function RadialOrbitalTimeline({
               className="absolute w-32 h-32 rounded-full border border-emerald-500/20 animate-ping opacity-50"
               style={{ animationDelay: "0.5s" }}
             ></div>
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-lg">
-              <Zap size={20} className="text-emerald-600" />
+            <div className="w-10 h-10 rounded-full bg-app-surface flex items-center justify-center shadow-lg">
+              <Zap size={20} className="text-app-emerald" />
             </div>
           </div>
 
           {/* Main Orbit Ring */}
-          <div className="absolute w-[440px] h-[440px] rounded-full border border-slate-200 shadow-[inset_0_0_30px_rgba(0,0,0,0.03)]"></div>
+          <div className="absolute w-[440px] h-[440px] rounded-full border border-app-border shadow-[inset_0_0_30px_rgba(0,0,0,0.03)]"></div>
 
           {timelineData.map((item, index) => {
             const position = calculateNodePosition(index, timelineData.length);
@@ -210,18 +210,18 @@ export default function RadialOrbitalTimeline({
                   w-12 h-12 rounded-full flex items-center justify-center
                   ${
                     isExpanded
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-app-emerald text-white"
                       : isRelated
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-50 text-slate-600"
+                      ? "bg-app-emerald/10 text-app-emerald"
+                      : "bg-app-muted text-app-text-muted"
                   }
                   border-2 
                   ${
                     isExpanded
-                      ? "border-emerald-500 shadow-xl shadow-emerald-500/30"
+                      ? "border-app-emerald shadow-xl shadow-app-emerald/30"
                       : isRelated
-                      ? "border-emerald-400 animate-pulse"
-                      : "border-slate-300"
+                      ? "border-app-emerald/40 animate-pulse"
+                      : "border-app-border"
                   }
                   transition-all duration-500 transform
                   ${isExpanded ? "scale-125" : "hover:scale-110 hover:border-emerald-400 hover:text-emerald-600"}
@@ -237,7 +237,7 @@ export default function RadialOrbitalTimeline({
                   absolute top-14 left-1/2 -translate-x-1/2 whitespace-nowrap
                   text-[10px] font-extrabold uppercase tracking-[0.2em]
                   transition-all duration-500
-                  ${isExpanded ? "text-slate-900 opacity-100 translate-y-1" : "text-slate-600 opacity-80"}
+                  ${isExpanded ? "text-app-text opacity-100 translate-y-1" : "text-app-text-muted opacity-80"}
                 `}
                 >
                   {item.title}
@@ -245,21 +245,21 @@ export default function RadialOrbitalTimeline({
 
                 {/* Detail Card */}
                 {isExpanded && (
-                  <Card className="absolute top-20 left-1/2 -translate-x-1/2 w-72 bg-white backdrop-blur-xl border-slate-300 shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-visible animate-in fade-in zoom-in duration-300">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-px h-3 bg-emerald-500"></div>
+                  <Card className="absolute top-20 left-1/2 -translate-x-1/2 w-72 bg-app-surface backdrop-blur-xl border-app-border shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-visible animate-in fade-in zoom-in duration-300">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-px h-3 bg-app-emerald"></div>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base font-serif text-slate-900 font-bold">
+                      <CardTitle className="text-base font-serif text-app-text font-bold">
                         {item.title}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs text-slate-700 leading-relaxed font-medium">
+                    <CardContent className="text-xs text-app-text-muted leading-relaxed font-medium">
                       <p>{item.content}</p>
 
                       {item.relatedIds.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-100">
+                        <div className="mt-4 pt-4 border-t border-app-border">
                           <div className="flex items-center mb-3">
-                            <Link size={10} className="text-emerald-600 mr-2" />
-                            <h4 className="text-[10px] uppercase tracking-[0.15em] font-black text-slate-400">
+                            <Link size={10} className="text-app-emerald mr-2" />
+                            <h4 className="text-[10px] uppercase tracking-[0.15em] font-black text-app-text-muted/50">
                               Integrated Workflows
                             </h4>
                           </div>
@@ -273,7 +273,7 @@ export default function RadialOrbitalTimeline({
                                   key={relatedId}
                                   variant="outline"
                                   size="sm"
-                                  className="flex items-center h-7 px-3 py-0 text-[10px] rounded-full border-slate-200 bg-slate-50 hover:bg-emerald-600 hover:border-emerald-600 text-slate-700 hover:text-white transition-all duration-300 shadow-sm font-bold"
+                                  className="flex items-center h-7 px-3 py-0 text-[10px] rounded-full border-app-border bg-app-muted hover:bg-app-emerald hover:border-app-emerald text-app-text hover:text-white transition-all duration-300 shadow-sm font-bold"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     toggleItem(relatedId);

@@ -19,6 +19,14 @@ export default {
         'deep-charcoal': '#1A1A1A',
         'light-gray': '#F8FAFC',
         'near-black': '#0F172A',
+        // Dynamic Theme Colors
+        'app-bg': 'var(--bg-primary)',
+        'app-surface': 'var(--bg-card)',
+        'app-muted': 'var(--bg-muted)',
+        'app-text': 'var(--text-primary)',
+        'app-text-muted': 'var(--text-secondary)',
+        'app-border': 'var(--border-color)',
+        'app-emerald': 'var(--accent-emerald)',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

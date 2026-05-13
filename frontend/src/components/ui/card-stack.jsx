@@ -264,8 +264,8 @@ export function CardStack({
                   className={cn(
                     "h-2 w-2 rounded-full transition",
                     on
-                      ? "bg-slate-900"
-                      : "bg-slate-300 hover:bg-slate-400",
+                      ? "bg-app-text"
+                      : "bg-app-text-muted/30 hover:bg-app-text-muted/60",
                   )}
                   aria-label={`Go to ${it.title}`}
                 />
@@ -277,7 +277,7 @@ export function CardStack({
               href={activeItem.href}
               target="_blank"
               rel="noreferrer"
-              className="text-slate-400 hover:text-slate-900 transition"
+              className="text-app-text-muted hover:text-app-text transition"
               aria-label="Open link"
             >
               <SquareArrowOutUpRight className="h-4 w-4" />
@@ -291,15 +291,15 @@ export function CardStack({
 
 function DefaultFanCard({ item }) {
   return (
-    <div className="relative h-full w-full bg-gradient-to-br from-[#FFFFFF] to-[#F0FDF4] flex flex-col p-8 border border-slate-200 border-t-4 border-t-emerald-500 shadow-[0_10px_30px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,1)]">
+    <div className="relative h-full w-full bg-app-surface flex flex-col p-8 border border-app-border border-t-4 border-t-app-emerald shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
       {/* Decorative Quote Icon */}
-      <div className="absolute top-6 right-8 opacity-[0.07] text-emerald-600">
+      <div className="absolute top-6 right-8 opacity-[0.07] text-app-emerald">
         <Quote size={64} fill="currentColor" />
       </div>
 
       <div className="flex-1 flex flex-col justify-center text-left">
         {item.tag && (
-          <span className="inline-block px-3 py-1 rounded-full bg-emerald-500 text-[10px] font-black text-white uppercase tracking-widest mb-4 self-start shadow-sm">
+          <span className="inline-block px-3 py-1 rounded-full bg-app-emerald text-[10px] font-black text-white uppercase tracking-widest mb-4 self-start shadow-sm">
             {item.tag}
           </span>
         )}
@@ -311,21 +311,21 @@ function DefaultFanCard({ item }) {
           ))}
         </div>
         
-        <p className="text-lg font-semibold text-slate-800 leading-relaxed italic mb-6 relative z-10">
+        <p className="text-lg font-bold text-app-text leading-relaxed italic mb-6 relative z-10">
           "{item.description}"
         </p>
 
         <div className="flex items-center gap-3 mt-auto">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 border-2 border-white">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-app-emerald to-teal-600 flex items-center justify-center text-white shadow-lg shadow-app-emerald/30 border-2 border-app-surface">
             <User size={20} fill="currentColor" className="opacity-80" />
           </div>
           <div>
-            <div className="text-sm font-black text-slate-900 tracking-tight">
+            <div className="text-sm font-black text-app-text tracking-tight">
               {item.title}
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-              <div className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">
+              <div className="w-1 h-1 rounded-full bg-app-emerald"></div>
+              <div className="text-[10px] text-app-emerald font-bold uppercase tracking-wider">
                 Verified Business
               </div>
             </div>

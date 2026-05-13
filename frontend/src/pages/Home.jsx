@@ -87,10 +87,10 @@ export default function Home() {
   };
 
   const buckets = [
-    { id: 'matched', label: 'Matched', count: 47, desc: 'Auto-approved with 99% confidence', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-800' },
-    { id: 'possible', label: 'Possible Matches', count: 12, desc: 'Review suggested pairings', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-800' },
-    { id: 'unmatched-bank', label: 'Unmatched (Bank)', count: 5, desc: 'Missing from Xero?', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-100 text-blue-800' },
-    { id: 'unmatched-xero', label: 'Unmatched (Xero)', count: 3, desc: 'Missing from bank?', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100 text-purple-800' },
+    { id: 'matched', label: 'Matched', count: 47, desc: 'Auto-approved with 99% confidence', bg: 'bg-app-surface', border: 'border-app-emerald/20', text: 'text-app-emerald', badge: 'bg-app-emerald/10 text-app-emerald' },
+    { id: 'possible', label: 'Possible Matches', count: 12, desc: 'Review suggested pairings', bg: 'bg-app-surface', border: 'border-amber-500/20', text: 'text-amber-500', badge: 'bg-amber-500/10 text-amber-500' },
+    { id: 'unmatched-bank', label: 'Unmatched (Bank)', count: 5, desc: 'Missing from Xero?', bg: 'bg-app-surface', border: 'border-blue-500/20', text: 'text-blue-500', badge: 'bg-blue-500/10 text-blue-500' },
+    { id: 'unmatched-xero', label: 'Unmatched (Xero)', count: 3, desc: 'Missing from bank?', bg: 'bg-app-surface', border: 'border-purple-500/20', text: 'text-purple-500', badge: 'bg-purple-500/10 text-purple-500' },
   ];
 
   const orbitalFeatures = [
@@ -203,48 +203,48 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] font-sans text-[#1A1A1A]">
+    <div className="min-h-screen bg-app-bg text-app-text font-sans transition-colors duration-300">
       {error && <ErrorAlert message={error} onClose={clearError} />}
 
       {/* Sticky Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#FDFBF7]/90 backdrop-blur-md border-b border-gray-200/50">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-app-bg/90 backdrop-blur-md border-b border-app-border">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="font-serif font-bold text-xl text-[#1A1A1A]">BankSync</div>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#64748B]">
-            <a href="#how-it-works" className="hover:text-[#1A1A1A] transition">How It Works</a>
-            <a href="#features" className="hover:text-[#1A1A1A] transition">Features</a>
-            <a href="#pricing" className="hover:text-[#1A1A1A] transition">Pricing</a>
+          <div className="font-serif font-bold text-2xl text-app-text tracking-tight">BankSync</div>
+          <nav className="hidden md:flex items-center gap-8 text-sm font-bold text-app-text-muted uppercase tracking-widest">
+            <a href="#how-it-works" className="hover:text-app-text transition">How It Works</a>
+            <a href="#features" className="hover:text-app-text transition">Features</a>
+            <a href="#pricing" className="hover:text-app-text transition">Pricing</a>
           </nav>
-          <button onClick={handleConnect} className="bg-[#059669] text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-emerald-700 transition shadow-sm">
+          <button onClick={handleConnect} className="bg-app-emerald text-white px-6 py-2 rounded-full text-sm font-bold hover:opacity-90 transition shadow-lg shadow-app-emerald/20">
             Connect to Xero
           </button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-gradient-to-br from-[#FDFBF7] to-[#F0F4F1]">
-        <div className="absolute inset-0 opacity-[0.15]" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q 25 0, 50 50 T 100 50' stroke='%23059669' fill='none' stroke-width='0.5'/%3E%3Cpath d='M50 0 Q 100 25, 50 50 T 50 100' stroke='%23059669' fill='none' stroke-width='0.5'/%3E%3C/svg%3E")`,
+      <section className="relative min-h-screen flex items-center pt-16 overflow-hidden bg-app-bg transition-colors duration-500">
+        <div className="absolute inset-0 opacity-[0.05] dark:opacity-[0.1]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q 25 0, 50 50 T 100 50' stroke='%2310B981' fill='none' stroke-width='0.5'/%3E%3Cpath d='M50 0 Q 100 25, 50 50 T 50 100' stroke='%2310B981' fill='none' stroke-width='0.5'/%3E%3C/svg%3E")`,
           backgroundSize: '60px 60px'
         }} />
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-20 flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1">
-            <h1 className="font-serif font-extrabold text-5xl lg:text-6xl text-[#1A1A1A] leading-tight mb-6">
-              Reconcile in<br />Minutes, <span className="text-[#059669]">Not Hours</span>
+            <h1 className="font-serif font-extrabold text-5xl lg:text-7xl text-app-text leading-[1.1] mb-6">
+              Reconcile in<br />Minutes, <span className="text-app-emerald">Not Hours</span>
             </h1>
-            <p className="text-lg text-[#64748B] max-w-[560px] mb-8 leading-relaxed">
+            <p className="text-lg text-app-text-secondary max-w-[560px] mb-8 leading-relaxed font-medium">
               AI-powered matching connects your bank statements to Xero invoices automatically. No more spreadsheet hell.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={handleConnect} className="bg-[#059669] text-white px-8 py-4 rounded-full font-semibold hover:bg-emerald-700 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
+              <button onClick={handleConnect} className="bg-app-emerald text-white px-8 py-4 rounded-full font-semibold hover:opacity-90 shadow-lg shadow-app-emerald/20 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
                 Start Free Trial
               </button>
-              <button onClick={() => setShowVideo(true)} className="flex items-center justify-center gap-2 px-8 py-4 rounded-full border-2 border-[#1A1A1A]/20 font-medium hover:border-[#1A1A1A]/40 transition">
+              <button onClick={() => setShowVideo(true)} className="flex items-center justify-center gap-2 px-8 py-4 rounded-full border-2 border-app-border font-bold text-app-text hover:bg-app-muted transition-all">
                 <PlayIcon /> See How It Works
               </button>
             </div>
             <div className="mt-12 flex items-center gap-6">
-              <span className="text-sm text-[#64748B]">Trusted by 2,000+ small businesses</span>
+              <span className="text-sm text-app-text-secondary font-bold uppercase tracking-widest">Trusted by 2,000+ businesses</span>
               <div className="flex text-amber-400 text-sm">★★★★★</div>
             </div>
           </div>
@@ -254,24 +254,24 @@ export default function Home() {
                 <div key={b.id} onClick={() => setActiveBucket(activeBucket === b.id ? null : b.id)} className={`${b.bg} ${b.border} border-2 rounded-xl p-5 cursor-pointer hover:shadow-lg transition-all duration-200 ${activeBucket === b.id ? 'ring-2 ring-offset-2 ring-emerald-500' : ''}`}>
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${b.badge} mb-3`}>{b.label}</span>
                   <div className={`text-3xl font-bold ${b.text}`}>{b.count}</div>
-                  <p className="text-xs text-[#64748B] mt-1">{b.desc}</p>
+                  <p className="text-xs text-app-text-muted mt-1 font-medium">{b.desc}</p>
                   {activeBucket === b.id && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 text-xs space-y-1">
-                      <div className="flex justify-between"><span>INV-001</span><span>$250.00</span></div>
-                      <div className="flex justify-between"><span>INV-002</span><span>$180.50</span></div>
+                    <div className="mt-3 pt-3 border-t border-app-border text-xs space-y-1">
+                      <div className="flex justify-between text-app-text"><span>INV-001</span><span className="font-bold">$250.00</span></div>
+                      <div className="flex justify-between text-app-text"><span>INV-002</span><span className="font-bold">$180.50</span></div>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <p className="text-center text-sm text-[#64748B] mt-4 italic">This is what clarity looks like.</p>
+            <p className="text-center text-sm text-app-text-muted mt-4 italic font-medium">This is what clarity looks like.</p>
           </div>
         </div>
       </section>
 
       {/* Problem Section */}
       <Reveal>
-        <section className="py-24 bg-white">
+        <section className="py-24 bg-app-surface">
           <div className="max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center gap-16">
             <div className="flex-1">
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-8 relative overflow-hidden">
@@ -290,15 +290,15 @@ export default function Home() {
               </div>
             </div>
             <div className="flex-1">
-              <h2 className="font-serif font-bold text-4xl text-[#1A1A1A] mb-6">You didn't start a business to do this.</h2>
-              <p className="text-lg text-[#64748B] leading-relaxed mb-8">
+              <h2 className="font-serif font-bold text-4xl text-app-text mb-6">You didn't start a business to do this.</h2>
+              <p className="text-lg text-app-text-secondary leading-relaxed mb-8 font-medium">
                 Every month, hours disappear into manually matching transactions. One typo. One missed invoice. One reconciliation error. And your books are off.
               </p>
               <div className="grid grid-cols-3 gap-6">
                 {[{ val: '6.5', unit: 'hrs', label: 'average monthly reconciliation time' }, { val: '34%', unit: '', label: 'of SMBs have reconciliation errors quarterly' }, { val: '£2,400', unit: '', label: 'average cost of bookkeeping corrections/year' }].map((s, i) => (
-                  <div key={i} className="bg-gray-50 rounded-xl p-5 text-center border border-gray-100">
-                    <div className="text-3xl font-bold text-[#1A1A1A]">{s.val}<span className="text-lg text-[#64748B]">{s.unit}</span></div>
-                    <p className="text-xs text-[#64748B] mt-1">{s.label}</p>
+                  <div key={i} className="bg-app-surface rounded-xl p-5 text-center border border-app-border shadow-sm">
+                    <div className="text-3xl font-black text-app-text">{s.val}<span className="text-lg text-app-text-muted">{s.unit}</span></div>
+                    <p className="text-[10px] text-app-text-muted mt-1 uppercase font-bold tracking-widest leading-tight">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -309,19 +309,19 @@ export default function Home() {
 
       {/* How It Works */}
       <Reveal>
-        <section id="how-it-works" className="py-24 bg-white">
+        <section id="how-it-works" className="py-24 bg-app-surface">
           <div className="max-w-7xl mx-auto px-6">
-            <h2 className="font-serif font-bold text-4xl text-center mb-16 text-[#1A1A1A]">How It Works</h2>
+            <h2 className="font-serif font-bold text-4xl text-center mb-16 text-app-text tracking-tight">How It Works</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               {steps.map((s, i) => (
                 <Reveal key={i} delay={i * 100}>
                   <div className="text-center group">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-emerald-50 rounded-full flex items-center justify-center text-[#059669] group-hover:bg-emerald-100 transition">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-app-emerald/10 rounded-full flex items-center justify-center text-app-emerald group-hover:scale-110 transition-transform duration-300">
                       {s.icon}
                     </div>
-                    <div className="text-sm text-[#059669] font-semibold mb-1">Step {i + 1}</div>
-                    <h3 className="font-bold text-lg mb-2 text-[#1A1A1A]">{s.title}</h3>
-                    <p className="text-sm text-[#64748B]">{s.desc}</p>
+                    <div className="text-xs text-app-emerald font-bold mb-1 uppercase tracking-widest">Step {i + 1}</div>
+                    <h3 className="font-bold text-xl mb-2 text-app-text">{s.title}</h3>
+                    <p className="text-sm text-app-text-muted font-medium">{s.desc}</p>
                   </div>
                 </Reveal>
               ))}
@@ -332,10 +332,10 @@ export default function Home() {
 
       {/* Features */}
       <Reveal>
-        <section id="features" className="py-24 bg-white text-[#1A1A1A]">
+        <section id="features" className="py-24 bg-app-surface text-app-text">
           <div className="max-w-7xl mx-auto px-6 text-center">
-            <h2 className="font-serif font-bold text-4xl mb-4 text-[#1A1A1A]">Everything you need</h2>
-            <p className="text-[#64748B] max-w-2xl mx-auto mb-16">Explore the core engines powering your financial automation through our interactive orbital system.</p>
+            <h2 className="font-serif font-bold text-4xl mb-4 text-app-text">Everything you need</h2>
+            <p className="text-app-text-muted max-w-2xl mx-auto mb-16 font-medium">Explore the core engines powering your financial automation through our interactive orbital system.</p>
             
             <div className="relative">
               <RadialOrbitalTimeline timelineData={orbitalFeatures} />
@@ -346,11 +346,11 @@ export default function Home() {
 
       {/* Testimonials */}
       <Reveal>
-        <section className="py-24 bg-white">
+        <section className="py-24 bg-app-surface">
           <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-10">
-              <h2 className="font-serif font-bold text-4xl text-[#1A1A1A] mb-4">Loved by business owners</h2>
-              <p className="text-[#64748B] max-w-2xl mx-auto">See how thousands of founders and finance teams are reclaiming their Fridays.</p>
+              <h2 className="font-serif font-bold text-4xl text-app-text mb-4">Loved by business owners</h2>
+              <p className="text-app-text-muted max-w-2xl mx-auto font-medium">See how thousands of founders and finance teams are reclaiming their Fridays.</p>
             </div>
             
             <div className="max-w-xl mx-auto">
@@ -369,10 +369,10 @@ export default function Home() {
 
       {/* Pricing */}
       <Reveal>
-        <section id="pricing" className="py-24 bg-gradient-to-b from-[#F0F4F1] to-[#FDFBF7]">
+        <section id="pricing" className="py-24 bg-app-bg transition-colors duration-500">
           <div className="max-w-7xl mx-auto px-6">
-            <h2 className="font-serif font-bold text-4xl text-center mb-4 text-[#1A1A1A]">Simple, transparent pricing</h2>
-            <p className="text-center text-[#64748B] mb-16">14-day free trial. No credit card required. Cancel anytime.</p>
+            <h2 className="font-serif font-bold text-4xl text-center mb-4 text-app-text">Simple, transparent pricing</h2>
+            <p className="text-center text-app-text-muted mb-16 font-medium">14-day free trial. No credit card required. Cancel anytime.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto items-stretch">
               {[
                 { name: 'Starter', price: '19', features: ['500 transactions/mo', '2 bank accounts', 'Email support', 'Basic reports'] },
@@ -380,14 +380,14 @@ export default function Home() {
                 { name: 'Business', price: '99', features: ['Unlimited transactions', 'Unlimited accounts', 'Dedicated support', 'API access', 'Custom reports'] },
               ].map((p, i) => (
                 <Reveal key={i} delay={i * 100} className="h-full">
-                  <div className={`h-full bg-white rounded-xl p-8 border-2 ${p.popular ? 'border-[#059669] shadow-xl scale-105 z-10' : 'border-gray-200'} relative flex flex-col`}>
-                    {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#059669] text-white text-xs font-bold px-3 py-1 rounded-full">MOST POPULAR</div>}
-                    <h3 className="font-bold text-xl mb-2 text-[#1A1A1A]">{p.name}</h3>
-                    <div className="mb-6"><span className="text-4xl font-bold text-[#1A1A1A]">${p.price}</span><span className="text-[#64748B]">/mo</span></div>
+                  <div className={`h-full bg-app-bg rounded-xl p-8 border-2 ${p.popular ? 'border-app-emerald shadow-xl scale-105 z-10' : 'border-app-border'} relative flex flex-col`}>
+                { p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-app-emerald text-white text-xs font-black px-4 py-1 rounded-full tracking-widest shadow-lg shadow-app-emerald/30">MOST POPULAR</div>}
+                    <h3 className="font-black text-2xl mb-2 text-app-text">{p.name}</h3>
+                    <div className="mb-6"><span className="text-4xl font-black text-app-text">${p.price}</span><span className="text-app-text-muted font-bold">/mo</span></div>
                     <ul className="space-y-3 mb-8 flex-1">
-                      {p.features.map((f, j) => <li key={j} className="flex items-center gap-2 text-sm text-[#1A1A1A]"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> {f}</li>)}
+                      {p.features.map((f, j) => <li key={j} className="flex items-center gap-2 text-sm text-app-text font-medium"><CheckCircle2 className="w-4 h-4 text-app-emerald" /> {f}</li>)}
                     </ul>
-                    <button onClick={handleConnect} className={`w-full py-3 rounded-full font-medium transition ${p.popular ? 'bg-[#059669] text-white hover:bg-emerald-700' : 'border-2 border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white'}`}>
+                    <button onClick={handleConnect} className={`w-full py-4 rounded-full font-black transition-all ${p.popular ? 'bg-app-emerald text-white hover:opacity-90 shadow-lg shadow-app-emerald/20' : 'border-2 border-app-text hover:bg-app-text hover:text-app-bg'}`}>
                       Start Free Trial
                     </button>
                   </div>
@@ -400,12 +400,12 @@ export default function Home() {
 
       {/* Final CTA */}
       <Reveal>
-        <section className="py-32 bg-[#059669] relative overflow-hidden">
+        <section className="py-32 bg-app-emerald relative overflow-hidden">
           <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at center, rgba(16, 185, 129, 0.2) 0%, transparent 70%)' }} />
           <div className="relative z-10 text-center max-w-3xl mx-auto px-6">
             <h2 className="font-serif font-bold text-4xl text-white mb-4">Stop reconciling. Start running your business.</h2>
             <p className="text-emerald-100 mb-8">Join 2,000+ businesses who've reclaimed their Fridays.</p>
-            <button onClick={handleConnect} className="bg-white text-[#059669] px-10 py-4 rounded-full font-semibold shadow-xl hover:scale-105 transition-all duration-200 inline-flex items-center gap-2">
+            <button onClick={handleConnect} className="bg-app-surface text-app-emerald px-10 py-4 rounded-full font-semibold shadow-xl hover:scale-105 transition-all duration-200 inline-flex items-center gap-2">
               <XeroIcon /> Connect to Xero
             </button>
             <p className="text-emerald-200 text-sm mt-4">Free 14-day trial • No credit card • Setup in 2 minutes</p>

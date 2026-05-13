@@ -49,7 +49,7 @@ class BankStatement(Base):
 
     # A pipe-separated string of InvoiceIDs that the user has explicitly rejected.
     # This prevents the engine from suggesting these invoices for this bank row again.
-    ignored_invoice_ids = Column(Text, default="") 
+    ignored_invoice_ids = Column(Text, default="")
 
     # Audit timestamp of when the reconciliation was finalized.
     reconciled_at = Column(DateTime, nullable=True)

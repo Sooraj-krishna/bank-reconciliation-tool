@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/client";
 import ErrorAlert from "../components/ErrorAlert";
@@ -10,6 +10,36 @@ const formatDate = (dateInput) => {
     return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   }
   return new Date(dateInput).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const formatAmount = (amount, type) => {
+  const val = Math.abs(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const t = type?.toUpperCase();
+  const isOutflow = amount < 0 || t === 'ACCPAY' || t === 'ACCRECCREDIT';
+  
+  return (
+    <span className={isOutflow ? "text-red-500 font-bold" : "text-app-emerald font-bold"}>
+      {isOutflow ? "-" : "+"} ${val}
+    </span>
+  );
+};
+
+const TypeBadge = ({ type }) => {
+  const t = type?.toUpperCase();
+  const isOutflow = t === 'ACCPAY' || t === 'ACCRECCREDIT';
+  let label = 'Invoice';
+  if (t === 'ACCPAY') label = 'Bill';
+  if (t?.includes('CREDIT')) label = 'Credit Note';
+  
+  return (
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter border ${
+      isOutflow 
+        ? 'bg-red-500/10 text-red-500 border-red-500/20' 
+        : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+    }`}>
+      {label}
+    </span>
+  );
 };
 
 export default function Reconcile() {
@@ -55,6 +85,7 @@ export default function Reconcile() {
    * After the backend update, it refreshes the UI state locally.
    */
   const handleAction = async (type, bankId, invoiceId) => {
+    if (isMatching) return; // RE-ENTRY GUARD: Prevents double-clicks if network is slow
     setIsMatching(true);
     try {
       let endpoint = "/api/reconcile/approve";
@@ -81,6 +112,7 @@ export default function Reconcile() {
    * Bulk Action: Approves all high-confidence suggestions in the current 'Matched' bucket.
    */
   const handleConfirmAll = async () => {
+    if (isMatching) return; // RE-ENTRY GUARD
     setIsMatching(true);
     try {
       // We only approve items that haven't been manually verified yet
@@ -103,6 +135,7 @@ export default function Reconcile() {
    * Triggers the backend Excel generation and handles the binary stream download.
    */
   const handleDownloadReport = async () => {
+    if (downloading) return; // RE-ENTRY GUARD
     setDownloading(true);
     try {
       const response = await api.get(`/api/reconcile/report/${uploadId}/download`, {
@@ -124,18 +157,13 @@ export default function Reconcile() {
     }
   };
 
-  if (loading && !data) {
-    return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#059669] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-[#64748B] animate-pulse font-medium">Running Intelligent Matching...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const { summary, buckets } = data;
+  const summary = data?.summary || {};
+  const buckets = data?.buckets || {
+    matched: [],
+    possible: [],
+    unmatched_bank: [],
+    unmatched_xero: []
+  };
 
   /**
    * THE NORMALIZE-EXTRACT PATTERN
@@ -154,7 +182,8 @@ export default function Reconcile() {
         name: item.xero_invoice.Contact?.Name || "",
         ref: item.xero_invoice.InvoiceNumber || "",
         bank_id: item.bank_transaction.id,
-        invoice_id: item.xero_invoice.InvoiceID
+        invoice_id: item.xero_invoice.InvoiceID,
+        is_xero: true
       };
     }
     // Shape: { InvoiceNumber, Total, Contact, ... }
@@ -165,7 +194,8 @@ export default function Reconcile() {
         desc: item.Reference || "",
         name: item.Contact?.Name || "",
         ref: item.InvoiceNumber || "",
-        invoice_id: item.InvoiceID
+        invoice_id: item.InvoiceID,
+        is_xero: true
       };
     }
     // Shape: { transaction_date, description, amount }
@@ -184,19 +214,19 @@ export default function Reconcile() {
    * --------------------------
    * Chains text search, date ranges, and amount ranges before applying sorts.
    */
-  const getFilteredItems = () => {
+  const filteredItems = useMemo(() => {
     let items = [...buckets[activeTab]];
 
     // 1. Unified Text Search
     if (searchTerm) {
-      const s = searchTerm.toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
       items = items.filter(item => {
-        const d = getNormData(item);
+        const normalizedData = getNormData(item);
         return (
-          d.desc.toLowerCase().includes(s) ||
-          d.name.toLowerCase().includes(s) ||
-          d.ref.toLowerCase().includes(s) ||
-          d.amount.toString().includes(s)
+          normalizedData.desc.toLowerCase().includes(searchLower) ||
+          normalizedData.name.toLowerCase().includes(searchLower) ||
+          normalizedData.ref.toLowerCase().includes(searchLower) ||
+          normalizedData.amount.toString().includes(searchLower)
         );
       });
     }
@@ -204,9 +234,9 @@ export default function Reconcile() {
     // 2. Date Range Clipping
     if (dateRange.start || dateRange.end) {
       items = items.filter(item => {
-        const d = getNormData(item).date;
-        if (dateRange.start && d < new Date(dateRange.start)) return false;
-        if (dateRange.end && d > new Date(dateRange.end)) return false;
+        const normalizedDate = getNormData(item).date;
+        if (dateRange.start && normalizedDate < new Date(dateRange.start)) return false;
+        if (dateRange.end && normalizedDate > new Date(dateRange.end)) return false;
         return true;
       });
     }
@@ -214,54 +244,63 @@ export default function Reconcile() {
     // 3. Amount Magnitude Filter (Uses absolute value for bank transactions)
     if (amountRange.min || amountRange.max) {
       items = items.filter(item => {
-        const amt = Math.abs(getNormData(item).amount);
-        if (amountRange.min && amt < parseFloat(amountRange.min)) return false;
-        if (amountRange.max && amt > parseFloat(amountRange.max)) return false;
+        const magnitudeAmount = Math.abs(getNormData(item).amount);
+        if (amountRange.min && magnitudeAmount < parseFloat(amountRange.min)) return false;
+        if (amountRange.max && magnitudeAmount > parseFloat(amountRange.max)) return false;
         return true;
       });
     }
 
     // 4. Deterministic Sort
     items.sort((a, b) => {
-      const dA = getNormData(a);
-      const dB = getNormData(b);
-      if (sortBy === "amount-asc") return dA.amount - dB.amount;
-      if (sortBy === "amount-desc") return dB.amount - dA.amount;
-      if (sortBy === "date-asc") return dA.date - dB.date;
-      return dB.date - dA.date;
+      const dataA = getNormData(a);
+      const dataB = getNormData(b);
+      if (sortBy === "amount-asc") return dataA.amount - dataB.amount;
+      if (sortBy === "amount-desc") return dataB.amount - dataA.amount;
+      if (sortBy === "date-asc") return dataA.date - dataB.date;
+      return dataB.date - dataA.date;
     });
 
     return items;
-  };
+  }, [buckets, activeTab, searchTerm, dateRange, amountRange, sortBy]);
 
-  const filteredItems = getFilteredItems();
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-app-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-app-emerald border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-app-text-muted animate-pulse font-bold tracking-widest uppercase text-xs">Running Intelligent Matching...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7]">
+    <div className="min-h-screen bg-app-bg text-app-text transition-colors duration-300">
       {error && <ErrorAlert message={error} onClose={() => setError("")} />}
 
       {/* Manual Match Modal */}
       {manualMatchTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden border border-gray-100">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="bg-app-surface rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden border border-app-border transition-all">
+            <div className="p-6 border-b border-app-border flex justify-between items-center bg-app-muted/30">
               <div>
-                <h3 className="font-serif font-bold text-xl text-[#1A1A1A]">Manual Match</h3>
-                <p className="text-xs text-[#64748B] font-medium mt-1">Linking: {manualMatchTarget.description} ({manualMatchTarget.amount.toFixed(2)})</p>
+                <h3 className="font-serif font-bold text-xl text-app-text">Manual Match</h3>
+                <p className="text-xs text-app-text-muted font-bold mt-1 uppercase tracking-widest">Linking: {manualMatchTarget.description} ({manualMatchTarget.amount.toFixed(2)})</p>
               </div>
-              <button onClick={() => { setManualMatchTarget(null); setModalSearch(""); }} className="p-2 hover:bg-white rounded-full transition shadow-sm"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
+              <button onClick={() => { setManualMatchTarget(null); setModalSearch(""); }} className="p-2 hover:bg-app-muted rounded-full transition text-app-text-muted hover:text-app-text"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
             </div>
             
             {/* Search Section for Modal */}
-            <div className="px-6 py-4 bg-white border-b border-gray-100">
+            <div className="px-6 py-4 bg-app-surface border-b border-app-border">
               <div className="relative">
-                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-app-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 <input 
                   type="text"
                   placeholder="Search contact, reference or amount..."
                   value={modalSearch}
                   onChange={(e) => setModalSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-app-muted border border-app-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-app-emerald/20 focus:border-app-emerald transition-all text-app-text"
                 />
               </div>
             </div>
@@ -301,25 +340,25 @@ export default function Reconcile() {
                 if (items.length === 0) {
                   return (
                     <div className="text-center py-10">
-                      <p className="text-gray-400">No matching unmatched invoices found.</p>
-                      {modalSearch && <button onClick={() => setModalSearch("")} className="text-emerald-600 text-sm font-bold mt-2 hover:underline">Clear Search</button>}
+                      <p className="text-app-text-muted font-bold">No matching unmatched invoices found.</p>
+                      {modalSearch && <button onClick={() => setModalSearch("")} className="text-app-emerald text-sm font-black mt-2 hover:underline">Clear Search</button>}
                     </div>
                   );
                 }
 
                 return items.map(inv => (
-                  <div key={inv.InvoiceID} className="p-4 rounded-2xl border border-gray-100 hover:border-emerald-500 hover:bg-emerald-50/20 transition group flex justify-between items-center">
+                  <div key={inv.InvoiceID} className="p-4 rounded-2xl border border-app-border hover:border-app-emerald hover:bg-app-emerald/5 transition group flex justify-between items-center">
                     <div>
-                      <p className="text-xs font-bold text-[#64748B] mb-1">{inv.InvoiceNumber} • {formatDate(inv.DateString || inv.Date)}</p>
-                      <p className="font-bold text-[#1A1A1A]">{inv.Contact?.Name}</p>
-                      <p className="text-lg font-black text-[#1A1A1A]">{inv.Total.toFixed(2)}</p>
+                      <p className="text-[10px] font-black text-app-text-muted mb-1 uppercase tracking-widest">{inv.InvoiceNumber} • {formatDate(inv.DateString || inv.Date)}</p>
+                      <p className="font-bold text-app-text">{inv.Contact?.Name}</p>
+                      <p className="text-xl font-black text-app-text">${inv.Total.toFixed(2)}</p>
                     </div>
                     <button 
                       onClick={() => handleAction("approve", manualMatchTarget.id, inv.InvoiceID)}
                       disabled={isMatching}
-                      className="bg-[#059669] text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                      className="bg-app-emerald text-white px-5 py-2 rounded-xl text-xs font-black shadow-lg shadow-app-emerald/20 hover:opacity-90 transition-all disabled:opacity-50"
                     >
-                      Match This
+                      {isMatching ? "Linking..." : "Match This"}
                     </button>
                   </div>
                 ));
@@ -330,20 +369,20 @@ export default function Reconcile() {
       )}
 
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-40">
+      <header className="bg-app-surface/90 backdrop-blur-md border-b border-app-border sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/upload")} className="text-[#64748B] hover:text-[#1A1A1A] transition">
+            <button onClick={() => navigate("/upload")} className="text-app-text-muted hover:text-app-text transition">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <div className="font-serif font-bold text-xl text-[#1A1A1A]">Reconciliation Report</div>
+            <div className="font-serif font-bold text-xl text-app-text tracking-tight">Reconciliation Report</div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden md:inline text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full font-medium">Upload ID: {uploadId.slice(0,8)}...</span>
+            <span className="hidden md:inline text-[10px] bg-app-muted text-app-text-muted px-3 py-1.5 rounded-full font-black uppercase tracking-widest border border-app-border">Upload ID: {uploadId.slice(0,8)}...</span>
             <button 
               onClick={handleDownloadReport}
               disabled={downloading || loading}
-              className="flex items-center gap-2 bg-white border border-gray-200 text-[#1A1A1A] px-4 py-2 rounded-full text-sm font-bold shadow-sm hover:border-[#059669] hover:text-[#059669] transition disabled:opacity-50"
+              className="flex items-center gap-2 bg-app-surface border border-app-border text-app-text px-4 py-2 rounded-full text-sm font-bold shadow-sm hover:border-app-emerald hover:text-app-emerald transition disabled:opacity-50"
             >
               <svg className={`w-4 h-4 ${downloading ? 'animate-bounce' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               {downloading ? "Exporting..." : "Export Report"}
@@ -351,7 +390,7 @@ export default function Reconcile() {
             <button 
               onClick={handleConfirmAll}
               disabled={isMatching || buckets.matched.length === 0}
-              className="bg-[#059669] text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              className="bg-app-emerald text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg shadow-app-emerald/20 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
             >
               {isMatching ? "Confirming..." : "Confirm All Matches"}
             </button>
@@ -368,29 +407,34 @@ export default function Reconcile() {
             { label: "Bank (Unmatched)", count: summary.unmatched_bank_count, amount: summary.unmatched_bank_amount, color: "red", icon: "×" },
             { label: "Xero (Unmatched)", count: summary.unmatched_xero_count, amount: summary.unmatched_xero_amount, color: "blue", icon: "?" },
           ].map((stat) => (
-            <div key={stat.label} className={`bg-white p-5 rounded-2xl border border-gray-100 shadow-sm border-l-4 border-l-${stat.color === 'blue' ? 'blue' : stat.color === 'amber' ? 'amber' : stat.color === 'red' ? 'red' : 'emerald'}-500`}>
+            <div key={stat.label} className={`bg-app-surface p-5 rounded-2xl border border-app-border shadow-sm border-l-4 ${stat.color === 'blue' ? 'border-l-blue-500' : stat.color === 'amber' ? 'border-l-amber-500' : stat.color === 'red' ? 'border-l-red-500' : 'border-l-app-emerald'} transition-all`}>
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest mb-1">{stat.label}</p>
+                  <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest mb-1">{stat.label}</p>
                   <div className="flex items-baseline gap-2">
-                    <p className={`text-2xl font-black text-${stat.color === 'blue' ? 'blue-600' : stat.color === 'amber' ? 'amber-600' : stat.color === 'red' ? 'red-600' : 'emerald-600'}`}>{stat.count}</p>
-                    <p className="text-xs text-gray-400 font-bold uppercase">Items</p>
+                    <p className={`text-2xl font-black ${stat.color === 'blue' ? 'text-blue-500' : stat.color === 'amber' ? 'text-amber-500' : stat.color === 'red' ? 'text-red-500' : 'text-emerald-500'}`}>{stat.count}</p>
+                    <p className="text-xs text-app-text-muted font-bold uppercase">Items</p>
                   </div>
-                  <p className="text-sm font-bold text-[#1A1A1A] mt-1">
+                  <p className="text-sm font-bold text-app-text mt-1">
                     ${(stat.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
-                <div className={`w-8 h-8 rounded-lg bg-${stat.color === 'blue' ? 'blue-50' : stat.color === 'amber' ? 'amber-50' : stat.color === 'red' ? 'red-50' : 'emerald-50'} text-${stat.color === 'blue' ? 'blue-600' : stat.color === 'amber' ? 'amber-600' : stat.color === 'red' ? 'red-600' : 'emerald-600'} flex items-center justify-center font-bold shadow-inner`}>{stat.icon}</div>
+                <div className={`w-8 h-8 rounded-lg ${
+                  stat.color === 'blue' ? 'bg-blue-500/10 text-blue-500' : 
+                  stat.color === 'amber' ? 'bg-amber-500/10 text-amber-500' : 
+                  stat.color === 'red' ? 'bg-red-500/10 text-red-500' : 
+                  'bg-app-emerald/10 text-app-emerald'
+                } flex items-center justify-center font-bold shadow-inner`}>{stat.icon}</div>
               </div>
             </div>
           ))}
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-8 space-y-6">
+        <div className="bg-app-surface p-6 rounded-3xl border border-app-border shadow-sm mb-8 space-y-6 transition-all">
           <div className="flex flex-col lg:flex-row gap-6 justify-between items-start lg:items-center">
             {/* Bucket Navigation Tabs */}
-            <div className="flex gap-1 bg-gray-50 p-1.5 rounded-2xl w-full lg:w-fit overflow-x-auto scrollbar-hide">
+            <div className="flex gap-1 bg-app-muted p-1.5 rounded-2xl w-full lg:w-fit overflow-x-auto scrollbar-hide">
               {["matched", "possible", "unmatched_bank", "unmatched_xero"].map((tab) => {
                 const count = summary[`${tab}_count`] || 0;
                 const amount = summary[`${tab}_amount`] || 0;
@@ -400,12 +444,12 @@ export default function Reconcile() {
                     onClick={() => { setActiveTab(tab); setSearchTerm(""); }}
                     className={`px-5 py-2.5 rounded-xl text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-widest flex items-center gap-2 ${
                       activeTab === tab 
-                      ? "bg-white text-[#059669] shadow-md shadow-emerald-500/10 scale-[1.02]" 
-                      : "text-[#64748B] hover:text-[#1A1A1A] hover:bg-gray-100/50"
+                      ? "bg-app-surface text-app-emerald shadow-md shadow-emerald-500/10 scale-[1.02]" 
+                      : "text-app-text-muted hover:text-app-text hover:bg-app-muted/50"
                     }`}
                   >
                     <span>{tab.replace("_", " ")}</span>
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] ${activeTab === tab ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black ${activeTab === tab ? 'bg-app-emerald/10 text-app-emerald' : 'bg-app-muted text-app-text-muted'}`}>
                       ${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </span>
                   </button>
@@ -416,12 +460,12 @@ export default function Reconcile() {
             <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               <div className="relative group flex-1 sm:w-48">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="w-3.5 h-3.5 text-gray-400 group-focus-within:text-[#059669] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  <svg className="w-3.5 h-3.5 text-app-text-muted group-focus-within:text-app-emerald transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
                 <input 
                   type="text" 
                   placeholder={`Search...`}
-                  className="w-full bg-gray-50 border-none pl-9 pr-4 py-2 rounded-xl text-xs font-bold placeholder:text-gray-400 focus:ring-2 focus:ring-[#059669]/20 focus:bg-white transition-all shadow-inner"
+                  className="w-full bg-app-muted border border-app-border pl-9 pr-4 py-2 rounded-xl text-xs font-bold text-app-text placeholder:text-app-text-muted focus:ring-2 focus:ring-app-emerald/20 focus:bg-app-surface transition-all shadow-inner"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -429,7 +473,7 @@ export default function Reconcile() {
 
               <div className="relative sm:w-40">
                 <select 
-                  className="w-full appearance-none bg-gray-50 border-none pl-3 pr-8 py-2 rounded-xl text-xs font-black text-[#1A1A1A] focus:ring-2 focus:ring-[#059669]/20 focus:bg-white transition-all cursor-pointer shadow-inner uppercase tracking-wider"
+                  className="w-full appearance-none bg-app-muted border border-app-border pl-3 pr-8 py-2 rounded-xl text-xs font-black text-app-text focus:ring-2 focus:ring-app-emerald/20 focus:bg-app-surface transition-all cursor-pointer shadow-inner uppercase tracking-wider"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                 >
@@ -438,7 +482,7 @@ export default function Reconcile() {
                   <option value="amount-desc">Highest Amount</option>
                   <option value="amount-asc">Lowest Amount</option>
                 </select>
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-app-text-muted">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" /></svg>
                 </div>
               </div>
@@ -446,22 +490,22 @@ export default function Reconcile() {
           </div>
 
           {/* Advanced Range Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-app-border">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#64748B] ml-1">Start Date</label>
-              <input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} className="w-full bg-gray-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold text-[#1A1A1A] focus:ring-2 focus:ring-[#059669]/20 transition-all shadow-inner"/>
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted ml-1">Start Date</label>
+              <input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} className="w-full bg-app-muted border border-app-border px-4 py-2.5 rounded-xl text-xs font-bold text-app-text focus:ring-2 focus:ring-app-emerald/20 transition-all shadow-inner [color-scheme:light] dark:[color-scheme:dark]"/>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#64748B] ml-1">End Date</label>
-              <input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} className="w-full bg-gray-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold text-[#1A1A1A] focus:ring-2 focus:ring-[#059669]/20 transition-all shadow-inner"/>
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted ml-1">End Date</label>
+              <input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} className="w-full bg-app-muted border border-app-border px-4 py-2.5 rounded-xl text-xs font-bold text-app-text focus:ring-2 focus:ring-app-emerald/20 transition-all shadow-inner [color-scheme:light] dark:[color-scheme:dark]"/>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#64748B] ml-1">Min Amount ($)</label>
-              <input type="number" placeholder="0.00" value={amountRange.min} onChange={(e) => setAmountRange(prev => ({...prev, min: e.target.value}))} className="w-full bg-gray-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold text-[#1A1A1A] focus:ring-2 focus:ring-[#059669]/20 transition-all shadow-inner"/>
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted ml-1">Min Amount ($)</label>
+              <input type="number" placeholder="0.00" value={amountRange.min} onChange={(e) => setAmountRange(prev => ({...prev, min: e.target.value}))} className="w-full bg-app-muted border border-app-border px-4 py-2.5 rounded-xl text-xs font-bold text-app-text focus:ring-2 focus:ring-app-emerald/20 transition-all shadow-inner"/>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#64748B] ml-1">Max Amount ($)</label>
-              <input type="number" placeholder="999,999" value={amountRange.max} onChange={(e) => setAmountRange(prev => ({...prev, max: e.target.value}))} className="w-full bg-gray-50 border-none px-4 py-2.5 rounded-xl text-xs font-bold text-[#1A1A1A] focus:ring-2 focus:ring-[#059669]/20 transition-all shadow-inner"/>
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-text-muted ml-1">Max Amount ($)</label>
+              <input type="number" placeholder="999,999" value={amountRange.max} onChange={(e) => setAmountRange(prev => ({...prev, max: e.target.value}))} className="w-full bg-app-muted border border-app-border px-4 py-2.5 rounded-xl text-xs font-bold text-app-text focus:ring-2 focus:ring-app-emerald/20 transition-all shadow-inner"/>
             </div>
           </div>
         </div>
@@ -469,57 +513,61 @@ export default function Reconcile() {
         {/* Results List */}
         <div className="space-y-4">
           {filteredItems.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-dashed border-gray-200 py-24 text-center">
-              <p className="text-[#64748B] font-medium">No results found for your search/filters.</p>
-              <button onClick={() => { setSearchTerm(""); setDateRange({start:"",end:""}); setAmountRange({min:"",max:""}); }} className="mt-4 text-[#059669] text-sm font-bold hover:underline">Clear all filters</button>
+            <div className="bg-app-surface rounded-3xl border border-dashed border-app-border py-24 text-center">
+              <p className="text-app-text-muted font-bold">No results found for your search/filters.</p>
+              <button onClick={() => { setSearchTerm(""); setDateRange({start:"",end:""}); setAmountRange({min:"",max:""}); }} className="mt-4 text-app-emerald text-sm font-black hover:underline">Clear all filters</button>
             </div>
           ) : (
             filteredItems.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden group hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-300">
+              <div key={idx} className="bg-app-surface rounded-3xl border border-app-border shadow-sm overflow-hidden group hover:border-app-emerald/50 hover:shadow-xl hover:shadow-app-emerald/5 transition-all duration-300">
                 {activeTab === "matched" || activeTab === "possible" ? (
                   <div className="flex flex-col">
-                    <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-gray-50">
+                    <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-app-border">
                       {/* Bank Side */}
-                      <div className="flex-1 p-6 bg-gray-50/30">
+                      <div className="flex-1 p-6 bg-app-muted/30">
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase">Bank Transaction</span>
-                          <span className="text-xs text-[#64748B] font-medium">{item.bank_transaction.transaction_date}</span>
+                          <span className="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded font-black uppercase tracking-widest border border-blue-500/20">Bank Transaction</span>
+                          <span className="text-xs text-app-text-muted font-bold">{item.bank_transaction.transaction_date}</span>
                         </div>
-                        <p className="font-bold text-[#1A1A1A] mb-1 leading-tight">{item.bank_transaction.description}</p>
-                        <p className="text-xl font-black text-[#1A1A1A]">${item.bank_transaction.amount.toFixed(2)}</p>
+                        <p className="font-bold text-app-text mb-1 leading-tight">{item.bank_transaction.description}</p>
+                        <p className="text-xl font-black">
+                          {formatAmount(item.bank_transaction.amount)}
+                        </p>
                       </div>
 
                       {/* Match Score Divider */}
-                      <div className="px-6 py-4 md:py-0 flex items-center justify-center bg-white">
+                      <div className="px-6 py-4 md:py-0 flex items-center justify-center bg-app-surface border-x border-app-border">
                         <div className="text-center">
                           {item.is_ambiguous && (
-                            <div className="text-[9px] bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-black uppercase mb-1.5 whitespace-nowrap shadow-sm">
+                            <div className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-1 rounded-full font-black uppercase mb-1.5 whitespace-nowrap shadow-sm border border-amber-500/20">
                               Ambiguous
                             </div>
                           )}
-                          <div className={`text-sm font-black ${item.confidence >= 85 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          <div className={`text-sm font-black ${item.confidence >= 85 ? 'text-emerald-500' : 'text-amber-500'}`}>
                             {item.confidence}%
                           </div>
-                          <div className="text-[10px] text-[#64748B] uppercase font-black tracking-tighter">Match</div>
+                          <div className="text-[10px] text-app-text-muted uppercase font-black tracking-tighter">Match</div>
                         </div>
                       </div>
 
                       {/* Xero Side */}
                       <div className="flex-1 p-6">
                         <div className="flex items-center gap-2 mb-3">
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold uppercase">Xero Invoice</span>
-                          <span className="text-xs text-[#64748B] font-medium">
+                          <TypeBadge type={item.xero_invoice.Type} />
+                          <span className="text-xs text-app-text-muted font-bold">
                             {item.xero_invoice.InvoiceNumber} • {formatDate(item.xero_invoice.DateString || item.xero_invoice.Date)}
                           </span>
                         </div>
-                        <p className="font-bold text-[#1A1A1A] mb-1 leading-tight">{item.xero_invoice.Contact?.Name}</p>
-                        <p className="text-xl font-black text-[#1A1A1A]">${(item.xero_invoice.Total || 0).toFixed(2)}</p>
+                        <p className="font-bold text-app-text mb-1 leading-tight">{item.xero_invoice.Contact?.Name}</p>
+                        <p className="text-xl font-black">
+                          {formatAmount(item.xero_invoice.Total || 0, item.xero_invoice.Type)}
+                        </p>
                       </div>
                     </div>
                     
                     {/* Actions Footer */}
-                    <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-50 flex justify-between items-center">
-                      <span className="text-[10px] text-gray-400 font-medium">
+                    <div className="px-6 py-4 bg-app-muted/50 border-t border-app-border flex justify-between items-center">
+                      <span className="text-[10px] text-app-text-muted font-medium">
                         {item.is_manual ? "● Manually Verified" : activeTab === "matched" ? "● Auto-Suggested" : "● Needs Review"}
                       </span>
                       <div className="flex gap-2">
@@ -528,14 +576,14 @@ export default function Reconcile() {
                             <button 
                               onClick={() => handleAction("reject", item.bank_transaction.id, item.xero_invoice.InvoiceID)}
                               disabled={isMatching}
-                              className="px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition disabled:opacity-50"
+                              className="px-4 py-2 text-xs font-black text-red-500 hover:bg-red-500/10 rounded-xl transition disabled:opacity-50"
                             >
                               Reject
                             </button>
                             <button 
                               onClick={() => handleAction("approve", item.bank_transaction.id, item.xero_invoice.InvoiceID)}
                               disabled={isMatching}
-                              className="px-5 py-2 text-xs font-bold bg-[#059669] text-white rounded-xl shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95 transition disabled:opacity-50"
+                              className="px-5 py-2 text-xs font-black bg-app-emerald text-white rounded-xl shadow-lg shadow-app-emerald/20 hover:opacity-90 transition disabled:opacity-50"
                             >
                               Approve Match
                             </button>
@@ -544,10 +592,10 @@ export default function Reconcile() {
                           <button 
                             onClick={() => handleAction("unreconcile", item.bank_transaction.id)}
                             disabled={isMatching}
-                            className="px-4 py-2 text-xs font-bold text-gray-500 hover:bg-white hover:text-gray-900 rounded-xl transition flex items-center gap-2 disabled:opacity-50"
+                            className="px-4 py-2 text-xs font-black text-app-text-muted hover:text-app-text rounded-xl transition flex items-center gap-2 disabled:opacity-50"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            Unlink
+                            {isMatching ? "Unlinking..." : "Unlink"}
                           </button>
                         )}
                       </div>
@@ -557,16 +605,17 @@ export default function Reconcile() {
                   <div className="p-6 flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase">Unmatched</span>
-                        <span className="text-xs text-[#64748B] font-medium">{item.transaction_date}</span>
+                        <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded font-bold uppercase">Unmatched</span>
+                        <span className="text-xs text-app-text-muted font-medium">{item.transaction_date}</span>
                       </div>
-                      <p className="font-bold text-[#1A1A1A] leading-tight">{item.description}</p>
+                      <p className="font-bold text-app-text leading-tight">{item.description}</p>
                     </div>
                     <div className="text-right ml-6">
-                      <p className="text-2xl font-black text-[#1A1A1A] mb-2">${item.amount.toFixed(2)}</p>
+                      <p className="text-2xl font-black mb-2">{formatAmount(item.amount)}</p>
                       <button 
                         onClick={() => setManualMatchTarget(item)}
-                        className="bg-white border border-gray-200 text-[#059669] px-4 py-2 rounded-xl text-xs font-bold hover:border-emerald-500 hover:bg-emerald-50 transition shadow-sm"
+                        disabled={isMatching}
+                        className="bg-app-surface border border-app-border text-app-emerald px-4 py-2 rounded-xl text-xs font-black hover:border-app-emerald hover:bg-app-emerald/5 transition shadow-sm disabled:opacity-50"
                       >
                         Find Match Manually
                       </button>
@@ -576,16 +625,16 @@ export default function Reconcile() {
                   <div className="p-6 flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase">Outstanding</span>
-                        <span className="text-xs text-[#64748B] font-medium">
+                        <TypeBadge type={item.Type} />
+                        <span className="text-xs text-app-text-muted font-medium">
                           {item.InvoiceNumber} • {formatDate(item.DateString || item.Date)}
                         </span>
                       </div>
-                      <p className="font-bold text-[#1A1A1A] leading-tight">{item.Contact?.Name}</p>
+                      <p className="font-bold text-app-text leading-tight">{item.Contact?.Name}</p>
                     </div>
                     <div className="text-right ml-6">
-                      <p className="text-2xl font-black text-[#1A1A1A] mb-2">${(item.Total || 0).toFixed(2)}</p>
-                      <span className="text-[10px] bg-gray-100 text-gray-500 px-3 py-1.5 rounded-full font-black uppercase tracking-wider">Unpaid</span>
+                      <p className="text-2xl font-black mb-2">{formatAmount(item.Total || 0, item.Type)}</p>
+                      <span className="text-[10px] bg-app-muted text-app-text-muted px-3 py-1.5 rounded-full font-black uppercase tracking-widest border border-app-border">Unpaid</span>
                     </div>
                   </div>
                 )}
@@ -594,25 +643,39 @@ export default function Reconcile() {
           )}
 
           {filteredItems.length > 0 && (
-            <div className="flex justify-between items-center px-8 py-6 bg-white rounded-3xl border border-emerald-100 shadow-xl shadow-emerald-500/5 mt-8 border-b-4 border-b-emerald-500">
+            <div className="flex justify-between items-center px-8 py-6 bg-app-surface rounded-3xl border border-app-emerald/20 shadow-xl shadow-app-emerald/5 mt-8 border-b-4 border-b-app-emerald">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-inner">
+                <div className="w-12 h-12 bg-app-emerald/10 text-app-emerald rounded-2xl flex items-center justify-center shadow-inner">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest mb-0.5">{activeTab.replace("_", " ")} Summary</p>
-                  <p className="text-sm font-bold text-[#1A1A1A]">Showing {filteredItems.length} transactions</p>
+                  <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest mb-0.5">{activeTab.replace("_", " ")} Summary</p>
+                  <p className="text-sm font-bold text-app-text">Showing {filteredItems.length} transactions</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black text-[#64748B] uppercase tracking-widest mb-0.5">Aggregate Total</p>
-                <p className="text-3xl font-black text-[#059669]">
-                  ${filteredItems.reduce((acc, item) => {
-                    const amt = activeTab === "unmatched_xero" 
-                      ? item.Total 
-                      : (item.bank_transaction?.amount || item.amount);
-                    return acc + Math.abs(amt);
-                  }, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <p className="text-[10px] font-black text-app-text-muted uppercase tracking-widest mb-0.5">Net Flow Result</p>
+                <p className="text-3xl font-black">
+                  {(() => {
+                    const net = filteredItems.reduce((acc, item) => {
+                      const rawAmt = activeTab === "unmatched_xero" 
+                        ? (item.Total || 0)
+                        : (item.bank_transaction?.amount || item.amount || 0);
+                      const type = activeTab === "unmatched_xero"
+                        ? item.Type
+                        : (item.xero_invoice?.Type);
+                      
+                      const isOutflow = rawAmt < 0 || type === 'ACCPAY' || type === 'ACCRECCREDIT';
+                      const signedAmt = isOutflow ? -Math.abs(rawAmt) : Math.abs(rawAmt);
+                      return acc + signedAmt;
+                    }, 0);
+                    
+                    return (
+                      <span className={net < 0 ? "text-red-500" : "text-app-emerald"}>
+                        {net < 0 ? "-" : "+"} ${Math.abs(net).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    );
+                  })()}
                 </p>
               </div>
             </div>

@@ -16,7 +16,9 @@ from app.core.config import (
     XERO_CLIENT_ID,
     XERO_CLIENT_SECRET,
     XERO_REDIRECT_URI,
-    FRONTEND_URL
+    FRONTEND_URL,
+    XERO_SCOPES,
+    SESSION_MAX_AGE
 )
 from app.services.token_store import store_tokens, get_tokens
 from app.services.xero_service import get_valid_tokens
@@ -45,7 +47,7 @@ def login(request: Request):
         "response_type": "code",           # Request an authorization code
         "client_id": XERO_CLIENT_ID,       # Application identifier registered in Xero
         "redirect_uri": XERO_REDIRECT_URI, # Where Xero sends the user after consent
-        "scope": "openid profile email accounting.invoices accounting.payments accounting.banktransactions accounting.settings offline_access",
+        "scope": " ".join(XERO_SCOPES),
     }
 
     # Construct the full Xero authorization URL
@@ -135,7 +137,7 @@ def callback(
             httponly=True,
             secure=is_prod,
             samesite="none" if is_prod else "lax",
-            max_age=60 * 60 * 24 * 7, # 7 days
+            max_age=SESSION_MAX_AGE,
         )
 
         return redir

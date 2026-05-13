@@ -36,29 +36,20 @@ export default function ErrorAlert({ message, onClose }) {
 
   return (
     // Full-screen dark overlay; z-50 ensures it renders above all other content
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
-
-      {/* Centered white card with rounded corners and shadow for depth */}
-      <div className="bg-white p-6 rounded-xl shadow-xl w-[320px] text-center">
-
-        {/* Alert title with warning icon */}
-        <h3 className="text-lg font-semibold mb-2 text-red-500">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-md z-50">
+      <div className="bg-app-surface p-6 rounded-3xl shadow-2xl w-[320px] text-center border border-app-border">
+        <h3 className="text-lg font-black mb-2 text-red-500 uppercase tracking-widest">
           ⚠️ Error
         </h3>
-
-        {/* The dynamic error message passed via props */}
-        <p className="text-gray-700">
+        <p className="text-app-text-muted font-bold text-sm">
           {message}
         </p>
-
-        {/* Manual dismiss button */}
         <button
           onClick={onClose}
-          className="mt-4 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+          className="mt-6 w-full px-4 py-2 bg-red-500 text-white rounded-xl font-black shadow-lg shadow-red-500/20 hover:opacity-90 transition uppercase text-xs tracking-widest"
         >
           Close
         </button>
-
       </div>
     </div>
   );
