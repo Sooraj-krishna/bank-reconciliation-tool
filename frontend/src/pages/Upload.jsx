@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import ErrorAlert from "../components/ErrorAlert";
 import UploadTable from "../components/UploadTable";
+import ThemeToggle from "../components/ThemeToggle";
 
 /**
  * Upload - Full page component for bank statement CSV management.
@@ -176,12 +177,15 @@ export default function Upload() {
             </button>
             <div className="font-serif font-bold text-2xl text-app-text tracking-tight">BankSync</div>
           </div>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-sm text-app-text-muted hover:text-app-text transition font-bold"
-          >
-            Back to Dashboard
-          </button>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="text-sm text-app-text-muted hover:text-app-text transition font-bold"
+            >
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </header>
 

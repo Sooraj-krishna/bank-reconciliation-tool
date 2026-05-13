@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/client";
 import ErrorAlert from "../components/ErrorAlert";
+import ThemeToggle from "../components/ThemeToggle";
 
 const formatDate = (dateInput) => {
   if (!dateInput) return "N/A";
@@ -378,6 +379,7 @@ export default function Reconcile() {
             <div className="font-serif font-bold text-xl text-app-text tracking-tight">Reconciliation Report</div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <span className="hidden md:inline text-[10px] bg-app-muted text-app-text-muted px-3 py-1.5 rounded-full font-black uppercase tracking-widest border border-app-border">Upload ID: {uploadId.slice(0,8)}...</span>
             <button 
               onClick={handleDownloadReport}

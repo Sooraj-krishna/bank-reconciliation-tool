@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
 import ErrorAlert from "../components/ErrorAlert";
+import ThemeToggle from "../components/ThemeToggle";
 import { useAppContext } from "../hooks/useAppContext";
 
 const StatusBadge = ({ status }) => {
@@ -215,7 +216,8 @@ export default function Dashboard() {
             <div className="font-serif font-bold text-2xl text-app-text tracking-tight">BankSync</div>
             <span className="text-[10px] bg-app-emerald/10 text-app-emerald px-3 py-1 rounded-full font-bold uppercase tracking-widest border border-app-emerald/20">Connected to Xero</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
             <button
               onClick={() => navigate("/upload")}
               className="text-sm bg-app-emerald text-white px-4 py-2 rounded-full hover:opacity-90 transition flex items-center gap-2 font-bold shadow-lg shadow-app-emerald/20"

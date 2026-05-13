@@ -29,6 +29,24 @@ export function AppProvider({ children }) {
     return getCookie("xero_session_id") || null;
   });
 
+  // Theme state
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  // Apply theme class to document
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
+  const toggleTheme = useCallback(() => {
+    setIsDark(prev => !prev);
+  }, []);
+
   /**
    * showError - Sets a global error message that triggers the ErrorAlert modal.
    * Wrapped in useCallback so its reference stays stable across renders.
@@ -79,6 +97,8 @@ export function AppProvider({ children }) {
         sessionId,
         setSessionId,
         checkXeroSession,
+        isDark,
+        toggleTheme,
       }}
     >
       {children}

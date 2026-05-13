@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ErrorAlert from "../components/ErrorAlert";
+import ThemeToggle from "../components/ThemeToggle";
 import { useAppContext } from "../hooks/useAppContext";
 import RadialOrbitalTimeline from "../components/ui/radial-orbital-timeline";
 import { CardStack } from "../components/ui/card-stack";
@@ -215,9 +216,12 @@ export default function Home() {
             <a href="#features" className="hover:text-app-text transition">Features</a>
             <a href="#pricing" className="hover:text-app-text transition">Pricing</a>
           </nav>
-          <button onClick={handleConnect} className="bg-app-emerald text-white px-6 py-2 rounded-full text-sm font-bold hover:opacity-90 transition shadow-lg shadow-app-emerald/20">
-            Connect to Xero
-          </button>
+          <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <button onClick={handleConnect} className="bg-app-emerald text-white px-6 py-2 rounded-full text-sm font-bold hover:opacity-90 transition shadow-lg shadow-app-emerald/20">
+              Connect to Xero
+            </button>
+          </div>
         </div>
       </header>
 
