@@ -256,6 +256,30 @@ export default function Reconcile() {
     items.sort((a, b) => {
       const dataA = getNormData(a);
       const dataB = getNormData(b);
+
+      // 4a. If searching, prioritize relevance (Exact > Starts With > Contains)
+      if (searchTerm) {
+        const s = searchTerm.toLowerCase();
+        
+        const getPriority = (data) => {
+          const name = (data.name || "").toLowerCase();
+          const ref = (data.ref || "").toLowerCase();
+          const desc = (data.desc || "").toLowerCase();
+          
+          if (name === s || ref === s) return 3; // Exact match on high-value fields
+          if (name.startsWith(s) || ref.startsWith(s)) return 2; // Starts with on high-value fields
+          if (desc === s) return 1.5; // Exact match on description
+          if (desc.startsWith(s)) return 1.2; // Starts with on description
+          return 1; // Substring match (all items in the list passed the filter)
+        };
+
+        const priA = getPriority(dataA);
+        const priB = getPriority(dataB);
+
+        if (priA !== priB) return priB - priA; // Higher priority moves up
+      }
+
+      // 4b. Secondary Sort: Use selected field (Date/Amount)
       if (sortBy === "amount-asc") return dataA.amount - dataB.amount;
       if (sortBy === "amount-desc") return dataB.amount - dataA.amount;
       if (sortBy === "date-asc") return dataA.date - dataB.date;
