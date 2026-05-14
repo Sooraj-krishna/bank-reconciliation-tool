@@ -10,6 +10,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
 from app.core.config import XERO_CLIENT_ID, XERO_CLIENT_SECRET
 from app.services.token_store import get_tokens, store_tokens, is_token_expired
 
@@ -38,23 +39,23 @@ def get_resilient_session():
     session.mount("https://", adapter)
     return session
 
-def get_valid_tokens(session_id: str) -> dict | None:
+def get_valid_tokens(session_id: str, db: Session = None) -> dict | None:
     """
     Retrieve tokens and automatically refresh if expired.
     Thread-safe to prevent multi-refresh race conditions.
     """
     with _refresh_lock:
-        token_entry = get_tokens(session_id)
+        token_entry = get_tokens(session_id, db=db)
         if not token_entry:
             return None
         
         # Automatically refresh if the token is within its 1-minute expiry window
         if is_token_expired(token_entry):
-            return refresh_access_token(session_id, token_entry)
+            return refresh_access_token(session_id, token_entry, db=db)
         
         return token_entry
 
-def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
+def refresh_access_token(session_id: str, token_entry: dict, db: Session = None) -> dict | None:
     """
     Use the refresh_token to get a new access_token from Xero's Identity service.
     """
@@ -83,8 +84,8 @@ def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
         if "refresh_token" not in new_token_data:
             new_token_data["refresh_token"] = refresh_token
         
-        store_tokens(session_id, new_token_data)
-        return get_tokens(session_id)
+        store_tokens(session_id, new_token_data, db=db)
+        return get_tokens(session_id, db=db)
     except Exception:
         return None
 
@@ -95,13 +96,13 @@ def get_xero_headers(token_entry: dict) -> dict:
         "Accept": "application/json",
     }
 
-def fetch_invoices(session_id: str, limit: int = 100) -> list:
+def fetch_invoices(session_id: str, limit: int = 100, db: Session = None) -> list:
     """
     Fetch invoices from Xero API with retry resilience.
     Uses exponential backoff to handle 429 Rate Limits and 5xx Server Errors.
     """
     # 1. Retrieve the persistent Xero token associated with this user session
-    token_entry = get_valid_tokens(session_id)
+    token_entry = get_valid_tokens(session_id, db=db)
     if not token_entry:
         raise Exception("No valid Xero session. Please reconnect.")
     

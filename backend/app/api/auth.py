@@ -8,10 +8,12 @@ Handles the two-step OAuth2 authorization code flow with Xero:
    httponly session cookie so subsequent API calls can be authenticated.
 """
 
-from fastapi import APIRouter, HTTPException, Request, Response, Cookie
+from fastapi import APIRouter, HTTPException, Request, Response, Cookie, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 import requests
+from sqlalchemy.orm import Session
 from urllib.parse import urlencode
+from app.core.database import get_db
 from app.core.config import (
     XERO_CLIENT_ID,
     XERO_CLIENT_SECRET,
@@ -62,6 +64,7 @@ def callback(
     code: str | None = None,
     error: str | None = None,
     error_description: str | None = None,
+    db: Session = Depends(get_db)
 ):
     """
     Handle the redirect back from Xero after user consent.
@@ -123,7 +126,7 @@ def callback(
         # Persist the token payload in the server-side token store
         import uuid
         session_id = str(uuid.uuid4())
-        store_tokens(session_id, token_data, tenant_id=tenant_id)
+        store_tokens(session_id, token_data, tenant_id=tenant_id, db=db)
 
         # Redirect to the frontend after successful authentication
         redir = RedirectResponse(url=f"{FRONTEND_URL}/dashboard", status_code=302)
@@ -149,7 +152,10 @@ def callback(
 
 
 @router.get("/session")
-def check_session(xero_session_id: str = Cookie(None)):
+def check_session(
+    xero_session_id: str = Cookie(None),
+    db: Session = Depends(get_db)
+):
     """
     Check if the current session is valid and not expired.
     Returns session status without exposing token details.
@@ -159,7 +165,7 @@ def check_session(xero_session_id: str = Cookie(None)):
         return {"connected": False}
 
     # Retrieve tokens and automatically refresh if expired
-    tokens = get_valid_tokens(xero_session_id)
+    tokens = get_valid_tokens(xero_session_id, db=db)
     if not tokens:
         return {"connected": False}
 
@@ -167,14 +173,18 @@ def check_session(xero_session_id: str = Cookie(None)):
 
 
 @router.get("/logout")
-def logout(response: Response, xero_session_id: str = Cookie(None)):
+def logout(
+    response: Response, 
+    xero_session_id: str = Cookie(None),
+    db: Session = Depends(get_db)
+):
     """
     Clear the Xero session.
     Deletes the session from the database and removes the session cookie.
     """
     if xero_session_id:
         from app.services.token_store import delete_session
-        delete_session(xero_session_id)
+        delete_session(xero_session_id, db=db)
         
     is_prod = FRONTEND_URL.startswith("https")
     response.delete_cookie(

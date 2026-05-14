@@ -5,7 +5,9 @@ Provides endpoints to fetch Xero invoices for the connected organisation.
 Requires a valid session cookie to authenticate the user.
 """
 
-from fastapi import APIRouter, HTTPException, Cookie
+from fastapi import APIRouter, HTTPException, Cookie, Depends
+from sqlalchemy.orm import Session
+from app.core.database import get_db
 from app.services.xero_service import fetch_invoices as fetch_xero_invoices
 from app.services.token_store import get_tokens, is_token_expired
 
@@ -16,6 +18,7 @@ router = APIRouter()
 def get_invoices(
     xero_session_id: str = Cookie(None),
     limit: int = 100,
+    db: Session = Depends(get_db)
 ):
     """
     Fetch invoices from Xero for the authenticated session.
@@ -42,7 +45,7 @@ def get_invoices(
 
     # Fetch invoices (this service handles auto-refresh internally)
     try:
-        invoices = fetch_xero_invoices(xero_session_id, limit=limit)
+        invoices = fetch_xero_invoices(xero_session_id, limit=limit, db=db)
         return {"invoices": invoices}
     except Exception as e:
         # If fetch_invoices fails (e.g. refresh token also expired), 

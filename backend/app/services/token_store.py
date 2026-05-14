@@ -69,12 +69,17 @@ def store_tokens(session_id: str, token_data: dict, tenant_id: str = None, db: S
             db.close()
 
 
-def get_tokens(session_id: str) -> dict | None:
+def get_tokens(session_id: str, db: Session = None) -> dict | None:
     """
     Retrieve the token entry for a specific session ID.
     Returns None if the session does not exist.
     """
-    db = SessionLocal()
+    # Use provided session or create a temporary one
+    temp_db = False
+    if db is None:
+        db = SessionLocal()
+        temp_db = True
+        
     try:
         token = db.query(Token).filter(Token.session_id == session_id).first()
         if not token:
@@ -93,7 +98,8 @@ def get_tokens(session_id: str) -> dict | None:
             "expires_at": token.expires_at.isoformat() if token.expires_at else None
         }
     finally:
-        db.close()
+        if temp_db:
+            db.close()
 
 
 def get_all_sessions() -> dict:
@@ -118,12 +124,16 @@ def get_all_sessions() -> dict:
         db.close()
 
 
-def delete_session(session_id: str) -> bool:
+def delete_session(session_id: str, db: Session = None) -> bool:
     """
     Remove a session from the database.
     Returns True if the session was found and deleted, False otherwise.
     """
-    db = SessionLocal()
+    temp_db = False
+    if db is None:
+        db = SessionLocal()
+        temp_db = True
+        
     try:
         token = db.query(Token).filter(Token.session_id == session_id).first()
         if token:
@@ -132,7 +142,8 @@ def delete_session(session_id: str) -> bool:
             return True
         return False
     finally:
-        db.close()
+        if temp_db:
+            db.close()
 
 
 def is_token_expired(token_entry: dict) -> bool:

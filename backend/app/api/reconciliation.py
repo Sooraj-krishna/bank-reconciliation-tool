@@ -67,7 +67,7 @@ def reconcile_upload(
 
     # 3. Live Xero Fetch (Uses resilient session with retries)
     try:
-        xero_data = fetch_invoices(xero_session_id)
+        xero_data = fetch_invoices(xero_session_id, db=db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Xero API Error: {str(e)}")
 
@@ -194,7 +194,7 @@ def download_reconciliation_report(
     ]
 
     try:
-        xero_data = fetch_invoices(xero_session_id)
+        xero_data = fetch_invoices(xero_session_id, db=db)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Xero API Error: {str(e)}")
 
