@@ -8,49 +8,85 @@ endpoints.
 """
 
 import os
-from fastapi import FastAPI
+import time
+from collections import defaultdict
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.core.config import ALLOWED_ORIGINS
 from app.core.database import engine, Base
 from app.models.token import Token
 from app.models.bank_statement import BankStatement
 from app.api import auth, invoices, upload, reconciliation
 
-# Create the FastAPI application instance — this is the ASGI entry point
-app = FastAPI()
+# --- SaaS Rate Limiting Middleware ---
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    In-memory rate limiter to protect the SaaS from abuse.
+    Identifies visitors by IP and limits their request frequency.
+    """
+    def __init__(self, app, requests_per_minute: int = 60):
+        super().__init__(app)
+        self.requests_per_minute = requests_per_minute
+        # Dictionary to store request timestamps per IP address
+        self.visitor_records = defaultdict(list)
 
-# Create database tables on startup (including new bank_statements table)
-Base.metadata.create_all(bind=engine)
+    async def dispatch(self, request: Request, call_next):
+        """
+        Intercepts every request to verify the rate limit hasn't been exceeded.
+        """
+        # Exclude health checks from rate limiting to allow load balancer monitoring
+        if request.url.path in ["/health", "/"]:
+            return await call_next(request)
 
-# Mount the auth router under the /auth prefix so endpoints like
-# /auth/login and /auth/callback are automatically registered
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+        # Identify client IP - handles proxies (Render, Cloudflare, etc.) by checking X-Forwarded-For
+        ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0]
+        now = time.time()
+        
+        # Prune request history older than 60 seconds to keep memory usage low
+        self.visitor_records[ip] = [t for t in self.visitor_records[ip] if now - t < 60]
+        
+        # If the number of requests in the last minute exceeds the limit, block the user
+        if len(self.visitor_records[ip]) >= self.requests_per_minute:
+            return Response(
+                content="Too many requests. Please wait a minute.",
+                status_code=429
+            )
+            
+        # Record the current request timestamp
+        self.visitor_records[ip].append(now)
+        return await call_next(request)
 
-# Mount the invoices router under /api prefix
-app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
+# Initialize FastAPI with a descriptive title for the SaaS API documentation
+app = FastAPI(title="BankSync SaaS API")
 
-# Mount the upload router under /api prefix for CSV upload endpoints
-app.include_router(upload.router, prefix="/api", tags=["Upload"])
-# Mount the reconciliation router
-app.include_router(reconciliation.router, prefix="/api", tags=["Reconciliation"])
-# Attach CORS middleware so the React frontend (running on a different
-# origin/port) can make cross-origin requests to this API.
-# allow_origin_regex allows all vercel.app preview deployments dynamically.
+# Register global middlewares in order of execution
+# 1. Rate Limiting (Digital Bouncer)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
+# 2. CORS (Allows React frontend to talk to this API)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,           # Explicit list of allowed frontend origins; an empty list blocks all CORS requests
+    allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=r"https://.*\.vercel\.app$" if os.getenv("ALLOW_VERCEL_PREVIEWS") else None,
-    allow_credentials=True,                   # Allow cookies to be sent cross-origin
-    allow_methods=["*"],                     # Permit every HTTP method (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],                     # Accept any custom headers the client may send
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+# Create database tables on startup
+Base.metadata.create_all(bind=engine)
+
+# Register Routers
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(invoices.router, prefix="/api", tags=["Invoices"])
+app.include_router(upload.router, prefix="/api", tags=["Upload"])
+app.include_router(reconciliation.router, prefix="/api", tags=["Reconciliation"])
 
 @app.get("/")
 def root():
-    """Root endpoint — confirms the backend server is reachable."""
-    return {"message": "Backend is running 🚀"}
+    return {"message": "BankSync API is running 🚀"}
 
 @app.get("/health")
 def health():
-    """Health-check endpoint — used by load balancers or monitoring tools to verify the service is alive."""
     return {"status": "ok"}

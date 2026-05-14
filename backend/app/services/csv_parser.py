@@ -66,8 +66,8 @@ def parse_date(raw: str) -> Optional[str]:
 
 def parse_amount(raw: str) -> Optional[float]:
     """
-    Parse a messy amount string into a clean float with sign awareness.
-
+    Parse a messy amount string into a clean float with strict sign awareness.
+    
     Handles:
     - Currency symbols: $250.50, ₹1500
     - Thousand separators: "1,500.00" → 1500.00
@@ -82,7 +82,7 @@ def parse_amount(raw: str) -> Optional[float]:
 
     amt_str = raw.strip()
 
-    # 1. Detect if it SHOULD be negative based on markers
+    # 1. Detect if the number should be negative based on common banking notations
     is_negative = False
     if amt_str.startswith("(") and amt_str.endswith(")"):
         is_negative = True
@@ -91,14 +91,15 @@ def parse_amount(raw: str) -> Optional[float]:
     elif amt_str.startswith("-"):
         is_negative = True
 
-    # 2. Strip ALL non-numeric characters except the decimal point
-    # This prevents '--75.00' issues
+    # 2. Sanitize: Remove all characters except digits and the decimal point
+    # This creates a "Pure Magnitude" string
     clean_str = re.sub(r'[^\d.]', '', amt_str)
 
     if not clean_str:
         return None
 
     try:
+        # Convert to float and apply detected sign
         value = float(clean_str)
         return -value if is_negative else value
     except ValueError:
@@ -120,7 +121,6 @@ def clean_description(raw: str) -> str:
     """
     if not raw:
         return ""
-    # Strip and collapse multiple whitespace chars
     return re.sub(r'\s+', ' ', raw.strip())
 
 
@@ -163,7 +163,7 @@ def _guess_columns(headers: list[str]) -> dict:
     """
     headers_lower = [header.lower().strip() for header in headers]
     
-    # 1. Basic Metadata Columns
+    # Pre-defined aliases for common banking headers
     date_aliases = CSV_DATE_ALIASES
     desc_aliases = CSV_DESC_ALIASES
     ref_aliases = CSV_REF_ALIASES
@@ -181,15 +181,14 @@ def _guess_columns(headers: list[str]) -> dict:
     desc_col, _ = find_best(desc_aliases)
     ref_col, _ = find_best(ref_aliases)
 
-    # 2. IDENTIFY THREATS: Columns that look like 'Balance' but contain 'Amount' or 'Total'
-    # We must NEVER pick these for transaction amounts.
+    # THREAT DETECTION: Blacklist columns that look like 'Balance' or 'Running Total'
     balance_indices = []
     balance_aliases = CSV_BALANCE_ALIASES
     for index, header in enumerate(headers_lower):
         if any(balance_alias in header for balance_alias in balance_aliases):
             balance_indices.append(index)
 
-    # 3. AMOUNT DETECTION (Pair-First Strategy)
+    # AMOUNT DETECTION: Pair-First Strategy (Handles split Debit/Credit columns)
     amount_col = None
     debit_col = None
     credit_col = None
@@ -202,9 +201,7 @@ def _guess_columns(headers: list[str]) -> dict:
         """Helper for strict word-based alias matching."""
         header_words = re.findall(r'\w+', header.lower())
         for alias in aliases:
-            # Exact match is always safe
             if alias == header.lower(): return True
-            # Word-based match (e.g., 'in' matches 'paid in' but not 'invoice')
             if alias in header_words: return True
         return False
 
@@ -216,12 +213,10 @@ def _guess_columns(headers: list[str]) -> dict:
         if is_match(header, credit_aliases):
             credit_col = headers[index]
 
-    # If we found at least a Debit column, assume it's a split format
     if debit_col:
         amount_col = (debit_col, credit_col) # credit_col might be None, which is fine
     else:
-        # 4. FALLBACK: Single Amount Search
-        # We rank them to find the most likely 'Net' amount
+        # Fallback to single Amount column search
         priority_amount_aliases = CSV_AMOUNT_PRIORITY_ALIASES
         amount_col_name, _ = find_best(priority_amount_aliases, blacklist=balance_indices)
         amount_col = amount_col_name
@@ -234,10 +229,10 @@ def _guess_columns(headers: list[str]) -> dict:
     }
 
 
-def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str) -> dict:
+def parse_csv(file_bytes: bytes, filename: str, upload_id: str, tenant_id: str) -> dict:
     """
-    Main entry point: parse raw CSV bytes into cleaned rows.
-
+    Main entry point: parse raw CSV bytes into cleaned, multi-tenant scoped rows.
+    
     Reads CSV, guesses columns, cleans each row, detects duplicates,
     and returns structured data ready for DB insertion.
 
@@ -245,18 +240,18 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
         file_bytes: Raw bytes of the uploaded CSV file
         filename: Original filename (for storing in DB) - sanitized before storage
         upload_id: UUID to group all rows from this upload
-        session_id: Xero session ID (for auth scoping)
+        tenant_id: Xero tenant ID (for multi-tenant isolation)
 
     Returns:
         Dict with: upload_id, filename, row_count, duplicate_count, rows[]
     """
-    # Sanitize filename - defense in depth (also done in API layer)
+    # Sanitize filename - defense in depth
     import re
     filename = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]  # Strip path
     filename = re.sub(r'[^a-zA-Z0-9._\-]', '', filename)  # Only safe chars
     filename = filename[:255] if filename else "unnamed_file.csv"
 
-    # Decode bytes - try utf-8 first, fall back to latin-1 for weird encodings
+    # Decode bytes (handles UTF-8 and Latin-1 fallbacks)
     try:
         content = file_bytes.decode("utf-8-sig")  # utf-8-sig handles BOM
     except UnicodeDecodeError:
@@ -267,9 +262,8 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
     if not reader.fieldnames:
         return {"upload_id": upload_id, "filename": filename, "row_count": 0, "duplicate_count": 0, "rows": []}
 
-    # Guess which CSV columns map to our fields
+    # 1. Map columns dynamically
     col_map = _guess_columns(reader.fieldnames)
-
     cleaned_rows = []
 
     for row in reader:
@@ -277,6 +271,7 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
         if not any(row.values()):
             continue
 
+        # 2. Extract and Clean Data
         raw_date = row.get(col_map["date"], "")
         raw_amount = row.get(col_map["amount"], "") if isinstance(col_map["amount"], str) else None
         raw_desc = row.get(col_map["description"], "")
@@ -289,7 +284,7 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
         date_val = parse_date(raw_date)
         desc_val = clean_description(full_desc)
 
-        # Handle combined Debit/Credit columns
+        # 3. AGGREGATE MATH: Convert Debit/Credit pairs into a single signed amount
         if isinstance(col_map["amount"], tuple):
             raw_debit = row.get(col_map["amount"][0], "")
             raw_credit = row.get(col_map["amount"][1], "")
@@ -311,10 +306,11 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
         if not date_val or amount_val is None:
             continue
 
+        # 4. Scope the data to the current SaaS Tenant
         cleaned_rows.append({
             "upload_id": upload_id,
             "filename": filename,
-            "session_id": session_id,
+            "tenant_id": tenant_id,
             "transaction_date": date_val,
             "raw_description": full_desc,  # Store the combined version for audit
             "description": desc_val,
@@ -322,9 +318,8 @@ def parse_csv(file_bytes: bytes, filename: str, upload_id: str, session_id: str)
             "is_duplicate": False  # Will be set by detect_duplicates
         })
 
-    # Flag duplicates (NOT remove them)
+    # 5. Flag duplicates before returning
     cleaned_rows = detect_duplicates(cleaned_rows)
-
     duplicate_count = sum(1 for r in cleaned_rows if r["is_duplicate"])
 
     return {

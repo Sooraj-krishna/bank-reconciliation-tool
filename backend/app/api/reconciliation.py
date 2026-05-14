@@ -31,13 +31,18 @@ def reconcile_upload(
     db: Session = Depends(get_db)
 ):
     """
-    Main Reconciliation Report generator.
-    Combines DB bank rows with Live Xero data and runs the matching engine.
+    Main Reconciliation Engine Trigger.
+    
+    FLOW:
+    1. Fetches bank transactions for this upload from the Database (tenant-scoped).
+    2. Fetches fresh invoices/bills from the Xero API (resiliently).
+    3. Runs the matching engine to find potential pairings.
+    4. Returns a report containing Matched, Partially Matched, and Unmatched items.
     """
     if not xero_session_id:
         raise HTTPException(status_code=401, detail="Xero session required.")
 
-    # Fetch bank rows for the specific upload and tenant
+    # 1. Database fetch (strictly scoped to this tenant)
     bank_rows = db.query(BankStatement).filter(
         BankStatement.upload_id == upload_id,
         BankStatement.tenant_id == tenant_id
@@ -46,8 +51,7 @@ def reconcile_upload(
     if not bank_rows:
         raise HTTPException(status_code=404, detail="Bank statement not found.")
 
-    # IMPORTANT: We map the DB fields (status, manual_id, ignored_ids) into the 
-    # bank_data dict so the run_reconciliation service can respect user overrides.
+    # 2. Map DB rows to dictionary format for the engine
     bank_data = [
         {
             "id": r.id,
@@ -61,13 +65,13 @@ def reconcile_upload(
         for r in bank_rows
     ]
 
-    # Fetch fresh invoices from Xero API
+    # 3. Live Xero Fetch (Uses resilient session with retries)
     try:
         xero_data = fetch_invoices(xero_session_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Xero API Error: {str(e)}")
 
-    # Execute matching logic
+    # 4. Execute Engine
     report = run_reconciliation(bank_data, xero_data)
     return report
 
@@ -160,11 +164,12 @@ def download_reconciliation_report(
 ):
     """
     Generates and streams the Excel reconciliation report.
+    This uses the same engine logic as the UI but outputs to an XLSX file.
     """
     if not xero_session_id:
         raise HTTPException(status_code=401, detail="Xero session required.")
 
-    # 1. Fetch data (same logic as /reconcile/{upload_id})
+    # 1. Fetch data
     bank_rows = db.query(BankStatement).filter(
         BankStatement.upload_id == upload_id,
         BankStatement.tenant_id == tenant_id

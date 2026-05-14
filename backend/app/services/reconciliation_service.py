@@ -169,10 +169,11 @@ def run_reconciliation(bank_rows: List[Dict[str, Any]], xero_invoices: List[Dict
                 continue
                 
             match_score = calculate_score(bank_row, invoice)
+            
+            # STEP 3: Bucket Assignment
             if match_score >= RECON_POSSIBLE_MATCH_THRESHOLD: # Threshold for 'Possible' bucket
                 candidates.append((match_score, invoice))
         
-        # STEP 3: Bucket Assignment
         if not candidates:
             unmatched_bank_bucket.append(bank_row)
             continue

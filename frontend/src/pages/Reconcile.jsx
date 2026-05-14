@@ -4,6 +4,10 @@ import api from "../api/client";
 import ErrorAlert from "../components/ErrorAlert";
 import ThemeToggle from "../components/ThemeToggle";
 
+/**
+ * Normalizes date formats from various sources (JSON strings, .NET ticks, Date objects)
+ * into a standardized 'DD MMM YYYY' format for consistent display.
+ */
 const formatDate = (dateInput) => {
   if (!dateInput) return "N/A";
   if (typeof dateInput === "string" && dateInput.includes("/Date(")) {

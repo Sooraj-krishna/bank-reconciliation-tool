@@ -38,4 +38,16 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Production interceptor to handle SaaS rate limiting gracefully
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 429) {
+      // Overwrite technical error with a friendly SaaS message
+      error.message = "System is busy. Please wait 60 seconds before trying again.";
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

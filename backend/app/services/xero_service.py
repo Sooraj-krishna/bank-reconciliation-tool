@@ -7,52 +7,66 @@ Handles all Xero API interactions including:
 - Error handling with friendly messages
 """
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from datetime import datetime, timedelta
 from app.core.config import XERO_CLIENT_ID, XERO_CLIENT_SECRET
 from app.services.token_store import get_tokens, store_tokens, is_token_expired
-
 
 import threading
 
 # Global lock to prevent parallel token refreshes for the same session
 _refresh_lock = threading.Lock()
 
+def get_resilient_session():
+    """
+    Creates a requests session with automatic retry logic for production stability.
+    
+    RESILIENCE STRATEGY:
+    - Retries: 3 attempts if the server is busy or failing.
+    - Backoff: Waits 1s, 2s, 4s between attempts (exponential).
+    - Triggers: Handles 429 (Rate Limit), 500, 502, 503, 504.
+    """
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3, # Max 3 retries
+        backoff_factor=1, # Wait 1s, 2s, 4s between retries
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    return session
+
 def get_valid_tokens(session_id: str) -> dict | None:
     """
     Retrieve tokens and automatically refresh if expired.
-    
-    Returns token dict with valid access_token, or None if refresh fails.
+    Thread-safe to prevent multi-refresh race conditions.
     """
     with _refresh_lock:
         token_entry = get_tokens(session_id)
-        
         if not token_entry:
             return None
         
-        # Check if token is expired (with 1-minute buffer added in token_store)
+        # Automatically refresh if the token is within its 1-minute expiry window
         if is_token_expired(token_entry):
-            print(f"TRACE: Token expired for session {session_id}, attempting refresh...", flush=True)
             return refresh_access_token(session_id, token_entry)
         
         return token_entry
 
-
 def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
     """
-    Use the refresh_token to get a new access_token from Xero.
-    
-    Updates the database with new tokens and returns the updated token entry.
-    Returns None if refresh fails.
+    Use the refresh_token to get a new access_token from Xero's Identity service.
     """
     refresh_token = token_entry.get("refresh_token")
-    
     if not refresh_token:
         return None
     
     token_url = "https://identity.xero.com/connect/token"
+    session = get_resilient_session()
     
     try:
-        resp = requests.post(
+        resp = session.post(
             token_url,
             data={
                 "grant_type": "refresh_token",
@@ -62,26 +76,17 @@ def refresh_access_token(session_id: str, token_entry: dict) -> dict | None:
         )
         
         if resp.status_code != 200:
-            print(f"DEBUG: Token refresh failed for session {session_id}. Status: {resp.status_code}, Body: {resp.text}", flush=True)
-            # Refresh failed - token might be revoked
             return None
         
-        print(f"DEBUG: Token refresh successful for session {session_id}", flush=True)
         new_token_data = resp.json()
-        
-        # Preserve old refresh_token if new one not provided
+        # Preserve old refresh_token if Xero doesn't rotate it
         if "refresh_token" not in new_token_data:
             new_token_data["refresh_token"] = refresh_token
         
-        # Update database
         store_tokens(session_id, new_token_data)
-        
-        # Return updated tokens
         return get_tokens(session_id)
-        
     except Exception:
         return None
-
 
 def get_xero_headers(token_entry: dict) -> dict:
     """Build authorization headers for Xero API requests."""
@@ -90,41 +95,42 @@ def get_xero_headers(token_entry: dict) -> dict:
         "Accept": "application/json",
     }
 
-
 def fetch_invoices(session_id: str, limit: int = 100) -> list:
     """
-    Fetch invoices from Xero API for the connected tenant.
-    
-    Automatically refreshes token if expired.
-    Returns list of invoice dicts or empty list on error.
+    Fetch invoices from Xero API with retry resilience.
+    Uses exponential backoff to handle 429 Rate Limits and 5xx Server Errors.
     """
+    # 1. Retrieve the persistent Xero token associated with this user session
     token_entry = get_valid_tokens(session_id)
-    
     if not token_entry:
-        raise Exception("No valid Xero session. Please reconnect to Xero.")
+        raise Exception("No valid Xero session. Please reconnect.")
     
+    # 2. Initialize a resilient HTTP session (built-in retries)
+    session = get_resilient_session()
     headers = get_xero_headers(token_entry)
     
-    # Fetch tenant ID from Xero (required for API calls)
+    # 3. Retrieve the Tenant ID (Xero requires this for all organisation-scoped data)
     tenants_url = "https://api.xero.com/connections"
-    tenants_resp = requests.get(tenants_url, headers=headers)
+    tenants_resp = session.get(tenants_url, headers=headers)
     
     if tenants_resp.status_code != 200:
-        raise Exception("Failed to get Xero tenant. Please reconnect to Xero.")
+        raise Exception("Failed to get Xero tenant connection.")
     
     tenants = tenants_resp.json()
     if not tenants:
-        raise Exception("No Xero organisations found. Please check your Xero connection.")
+        raise Exception("No Xero organisations found.")
     
+    # Use the first organisation connected to this session
     tenant_id = tenants[0]["tenantId"]
     headers["Xero-Tenant-Id"] = tenant_id
     
-    # Fetch invoices
+    # 4. Fetch invoices (paginated to ensure high performance)
     invoices_url = f"https://api.xero.com/api.xro/2.0/Invoices?page=1&pageSize={limit}"
-    invoices_resp = requests.get(invoices_url, headers=headers)
+    invoices_resp = session.get(invoices_url, headers=headers)
     
     if invoices_resp.status_code != 200:
-        raise Exception(f"Failed to fetch invoices from Xero: {invoices_resp.text}")
+        raise Exception(f"Xero API Error: {invoices_resp.status_code}")
     
+    # Return the raw list of Xero Invoice objects
     data = invoices_resp.json()
     return data.get("Invoices", [])

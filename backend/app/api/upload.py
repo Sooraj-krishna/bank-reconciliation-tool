@@ -136,7 +136,7 @@ def upload_csv(
             rows_to_insert.append(BankStatement(
                 upload_id=row["upload_id"],
                 filename=clean_filename,
-                tenant_id=row["session_id"],  # We reused the session_id key in result rows
+                tenant_id=row["tenant_id"],  # Using the cleaned tenant_id from parser
                 transaction_date=clean_date,
                 description=clean_desc,
                 raw_description=clean_raw,
