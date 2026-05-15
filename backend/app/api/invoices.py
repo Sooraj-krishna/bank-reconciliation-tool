@@ -8,8 +8,9 @@ Requires a valid session cookie to authenticate the user.
 from fastapi import APIRouter, HTTPException, Cookie, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.services.xero_service import fetch_invoices as fetch_xero_invoices
-from app.services.token_store import get_tokens, is_token_expired
+from app.models.invoice import InvoiceCache
+from app.services.sync_service import sync_invoices
+from app.api.upload import get_current_tenant_id
 
 router = APIRouter()
 
@@ -18,39 +19,46 @@ router = APIRouter()
 def get_invoices(
     xero_session_id: str = Cookie(None),
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tenant_id: str = Depends(get_current_tenant_id)
 ):
     """
-    Fetch invoices from Xero for the authenticated session.
-
-    Args:
-        xero_session_id: Session cookie identifying the user's Xero connection
-        limit: Maximum number of invoices to fetch (default 100)
-
-    Returns:
-        List of invoice objects from Xero
-
-    Raises:
-        HTTPException 401 if not connected to Xero
-        HTTPException 500 if fetch fails
+    Fetch invoices from the local cache for high performance.
+    Triggers a background sync to keep data fresh.
     """
-    # Production Trace: Log headers to diagnose cookie issues
-    print(f"TRACE: get_invoices - xero_session_id present: {bool(xero_session_id)}", flush=True)
-    
     if not xero_session_id:
-        raise HTTPException(
-            status_code=401,
-            detail="No session cookie found. If you are in production, ensure CORS allow_credentials is True and SameSite is None."
-        )
+        raise HTTPException(status_code=401, detail="Xero session required.")
 
-    # Fetch invoices (this service handles auto-refresh internally)
+    # 1. Trigger Sync (Foreground for now to ensure data exists, 
+    # can be moved to background tasks for even more speed)
     try:
-        invoices = fetch_xero_invoices(xero_session_id, limit=limit, db=db)
-        return {"invoices": invoices}
+        sync_result = sync_invoices(xero_session_id, db)
+        if sync_result.get("status") == "error":
+            # If sync fails but we have old data, we can still show it
+            pass
     except Exception as e:
-        # If fetch_invoices fails (e.g. refresh token also expired), 
-        # we check the message to return a 401 if it's a session issue.
-        error_msg = str(e).lower()
-        if "session" in error_msg or "reconnect" in error_msg or "organisation" in error_msg:
-            raise HTTPException(status_code=401, detail=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Sync Warning: {str(e)}")
+
+    # 2. Fetch from local DB (Instant)
+    invoices = db.query(InvoiceCache).filter(
+        InvoiceCache.tenant_id == tenant_id,
+        InvoiceCache.status != "DELETED",
+        InvoiceCache.status != "VOIDED"
+    ).limit(limit).all()
+
+    # Convert to the format expected by the frontend
+    formatted_invoices = []
+    for inv in invoices:
+        formatted_invoices.append({
+            "InvoiceID": inv.invoice_id,
+            "InvoiceNumber": inv.invoice_number,
+            "Contact": {"Name": inv.contact_name},
+            "DateString": inv.date,
+            "DueDateString": inv.due_date,
+            "Total": inv.total,
+            "AmountDue": inv.amount_due,
+            "Status": inv.status,
+            "Type": inv.type
+        })
+
+    return {"invoices": formatted_invoices}

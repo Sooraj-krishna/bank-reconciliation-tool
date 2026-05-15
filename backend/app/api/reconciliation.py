@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.bank_statement import BankStatement
+from app.models.invoice import InvoiceCache
 from app.services.xero_service import fetch_invoices
 from app.services.reconciliation_service import run_reconciliation
 from app.services.report_service import generate_reconciliation_excel
@@ -65,11 +66,28 @@ def reconcile_upload(
         for r in bank_rows
     ]
 
-    # 3. Live Xero Fetch (Uses resilient session with retries)
-    try:
-        xero_data = fetch_invoices(xero_session_id, db=db)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Xero API Error: {str(e)}")
+    # 2. Live Xero Cache Fetch (Instant)
+    # We fetch from DB because the dashboard already triggers the background sync
+    invoices = db.query(InvoiceCache).filter(
+        InvoiceCache.tenant_id == tenant_id,
+        InvoiceCache.status != "DELETED",
+        InvoiceCache.status != "VOIDED"
+    ).all()
+
+    # Map Cache to the format expected by the engine
+    xero_data = []
+    for inv in invoices:
+        xero_data.append({
+            "InvoiceID": inv.invoice_id,
+            "InvoiceNumber": inv.invoice_number,
+            "Contact": {"Name": inv.contact_name},
+            "DateString": inv.date,
+            "DueDateString": inv.due_date,
+            "Total": inv.total,
+            "AmountDue": inv.amount_due,
+            "Status": inv.status,
+            "Type": inv.type
+        })
 
     # 4. Execute Engine
     report = run_reconciliation(bank_data, xero_data)
@@ -193,10 +211,26 @@ def download_reconciliation_report(
         for r in bank_rows
     ]
 
-    try:
-        xero_data = fetch_invoices(xero_session_id, db=db)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Xero API Error: {str(e)}")
+    # 2. Fetch from Cache (Instant)
+    invoices = db.query(InvoiceCache).filter(
+        InvoiceCache.tenant_id == tenant_id,
+        InvoiceCache.status != "DELETED",
+        InvoiceCache.status != "VOIDED"
+    ).all()
+
+    xero_data = []
+    for inv in invoices:
+        xero_data.append({
+            "InvoiceID": inv.invoice_id,
+            "InvoiceNumber": inv.invoice_number,
+            "Contact": {"Name": inv.contact_name},
+            "DateString": inv.date,
+            "DueDateString": inv.due_date,
+            "Total": inv.total,
+            "AmountDue": inv.amount_due,
+            "Status": inv.status,
+            "Type": inv.type
+        })
 
     # 2. Run Engine to get full report object
     report_obj = run_reconciliation(bank_data, xero_data)

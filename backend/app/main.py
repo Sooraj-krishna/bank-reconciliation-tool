@@ -18,6 +18,7 @@ from app.core.config import ALLOWED_ORIGINS
 from app.core.database import engine, Base
 from app.models.token import Token
 from app.models.bank_statement import BankStatement
+from app.models.invoice import InvoiceCache
 from app.api import auth, invoices, upload, reconciliation
 
 # --- SaaS Rate Limiting Middleware ---
